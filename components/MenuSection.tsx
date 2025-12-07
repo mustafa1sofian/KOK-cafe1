@@ -25,11 +25,11 @@ const MenuSection = () => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // Get only featured and available menu items
       const items = await getMenuItems(undefined, true); // isFeatured = true
       const availableItems = items.filter(item => item.isAvailable);
-      
+
       // Limit to 6 items for homepage display
       setMenuItems(availableItems.slice(0, 6));
     } catch (err) {
@@ -67,7 +67,7 @@ const MenuSection = () => {
     // This is a simplified categorization - in a real app you might want to 
     // fetch subcategory info or have a mapping
     return {
-      color: 'bg-yellow-600 text-black',
+      color: 'bg-blue-700 text-white',
       label: language === 'ar' ? 'مميز' : 'Featured'
     };
   }, [language]);
@@ -76,15 +76,13 @@ const MenuSection = () => {
     <section ref={sectionRef} id="menu" className="py-12 md:py-20 bg-gray-50">
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center mb-10 md:mb-14">
-          <h2 className={`text-3xl sm:text-4xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-4 ${
-            isVisible ? 'animate-slide-up-fast' : 'opacity-0'
-          } ${isRTL ? 'font-arabic' : 'font-english'}`}>
+          <h2 className={`text-3xl sm:text-4xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-4 ${isVisible ? 'animate-slide-up-fast' : 'opacity-0'
+            } ${isRTL ? 'font-arabic' : 'font-english'}`}>
             {t('menuTitle')}
           </h2>
-          <p className={`text-gray-600 text-sm md:text-base max-w-2xl mx-auto leading-relaxed ${
-            isRTL ? 'font-arabic' : 'font-english'
-          }`}>
-            {language === 'ar' 
+          <p className={`text-gray-600 text-sm md:text-base max-w-2xl mx-auto leading-relaxed ${isRTL ? 'font-arabic' : 'font-english'
+            }`}>
+            {language === 'ar'
               ? 'تذوق أشهى الأطباق الشامية والبحرية المحضرة بإتقان'
               : 'Taste the finest Levantine and seafood dishes expertly prepared'
             }
@@ -95,7 +93,7 @@ const MenuSection = () => {
         {isLoading && (
           <div className="flex justify-center items-center py-16">
             <div className="text-center">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-yellow-600" />
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
               <p className={`text-gray-600 ${isRTL ? 'font-arabic' : 'font-english'}`}>
                 {language === 'ar' ? 'جاري تحميل الأطباق المميزة...' : 'Loading featured dishes...'}
               </p>
@@ -124,12 +122,11 @@ const MenuSection = () => {
             {menuItems.map((item, index) => (
               <Card
                 key={item.id}
-                className={`group overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-gray-100 hover:border-gray-200 rounded-2xl ${
-                  isVisible ? 'animate-scale-in' : 'opacity-0'
-                }`}
+                className={`group overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-gray-100 hover:border-gray-200 rounded-2xl ${isVisible ? 'animate-scale-in' : 'opacity-0'
+                  }`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                <div className="relative w-full h-56 sm:h-60 md:h-64 lg:h-60 overflow-hidden bg-gray-100">
                   <img
                     src={item.imageUrl || 'https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop'}
                     alt={language === 'ar' ? item.nameAr : item.nameEn}
@@ -137,36 +134,34 @@ const MenuSection = () => {
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                  
+
                   {/* Price Badge on Image */}
                   <div className="absolute bottom-3 left-3 rtl:left-auto rtl:right-3">
                     <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg">
-                      <span className="text-base md:text-lg font-bold text-yellow-600">
+                      <span className="text-base md:text-lg font-bold text-blue-700">
                         {item.price} ر.س
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* Featured Badge */}
                   {item.isFeatured && (
                     <div className="absolute top-3 right-3 rtl:right-auto rtl:left-3">
-                      <span className="bg-yellow-500 text-black px-2.5 py-1 rounded-full text-xs font-bold shadow-lg">
+                      <span className="bg-blue-600 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg">
                         {language === 'ar' ? 'مميز' : 'Featured'}
                       </span>
                     </div>
                   )}
                 </div>
-                
+
                 <CardContent className="p-4 md:p-5">
-                  <h3 className={`text-base md:text-lg font-semibold text-gray-900 mb-2 line-clamp-1 ${
-                    isRTL ? 'font-arabic text-right' : 'font-english text-left'
-                  }`}>
+                  <h3 className={`text-base md:text-lg font-semibold text-gray-900 mb-2 line-clamp-1 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
+                    }`}>
                     {language === 'ar' ? item.nameAr : item.nameEn}
                   </h3>
-                  
-                  <p className={`text-gray-600 text-sm leading-relaxed line-clamp-2 ${
-                    isRTL ? 'font-arabic text-right' : 'font-english text-left'
-                  }`}>
+
+                  <p className={`text-gray-600 text-sm leading-relaxed line-clamp-2 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
+                    }`}>
                     {language === 'ar' ? item.descriptionAr : item.descriptionEn}
                   </p>
                 </CardContent>
@@ -190,9 +185,8 @@ const MenuSection = () => {
             <Button
               size="lg"
               onClick={() => window.location.href = '/menu'}
-              className={`bg-gray-900 hover:bg-gray-800 text-white px-8 py-3 md:py-4 text-base md:text-lg transition-all duration-300 shadow-lg hover:shadow-xl rounded-xl ${
-                isVisible ? 'animate-fade-in' : 'opacity-0'
-              } ${isRTL ? 'font-arabic' : 'font-english'}`}
+              className={`bg-gray-900 hover:bg-gray-800 text-white px-8 py-3 md:py-4 text-base md:text-lg transition-all duration-300 shadow-lg hover:shadow-xl rounded-xl ${isVisible ? 'animate-fade-in' : 'opacity-0'
+                } ${isRTL ? 'font-arabic' : 'font-english'}`}
             >
               {t('viewFullMenu')}
             </Button>

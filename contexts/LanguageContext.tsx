@@ -24,27 +24,27 @@ const translations = {
     reservation: 'Reservation',
     gallery: 'Gallery',
     contact: 'Contact Us',
-    
+
     // Hero Section
     heroTitle: 'Koukian – Where Luxury Meets Taste',
     heroSubtitle: 'Savor the finest Levantine and seafood dishes in an elegant ambiance with a stunning sea view',
     bookNow: 'Book Now',
-    
+
     // About Section
     aboutTitle: 'About Koukian',
     fullMenu: 'Full Menu',
     aboutContent: 'At Koukian, we bring together the rich flavors of Levantine cuisine with the freshest seafood, all while enjoying breathtaking sea views. Our master chefs blend traditional Middle Eastern recipes with contemporary culinary techniques, creating an unforgettable dining experience where every dish tells a story of heritage and innovation.',
-    
+
     // Menu Section
     menuTitle: 'Our Signature Dishes',
     viewFullMenu: 'View Full Menu',
-    
+
     // Offers Section
     offersTitle: 'Special Offers & Events',
-    
+
     // Events Section
     events: 'Events',
-    
+
     // Reservation Form
     reservationTitle: 'Make a Reservation',
     name: 'Full Name',
@@ -61,25 +61,25 @@ const translations = {
     outdoorSmoking: 'Outdoor (Smoking Allowed)',
     outdoorNonSmoking: 'Outdoor (Non-Smoking)',
     submitReservation: 'Reserve Table',
-    
+
     // Gallery
     galleryTitle: 'Gallery',
-    
+
     // Contact
     contactTitle: 'Contact & Location',
     phoneLabel: 'Phone',
     whatsapp: 'WhatsApp',
     emailLabel: 'Email',
-    
+
     // Footer
     quickLinks: 'Quick Links',
     followUs: 'Follow Us',
-    copyright: '© 2024 Koukian Restaurant. All rights reserved.',
-    
+    copyright: '© 2026 Koukian Restaurant. All rights reserved.',
+
     // Menu Page
     ourMenu: 'Our Menu',
     menuDescription: 'Discover our exquisite collection of Levantine and seafood specialties with stunning sea views',
-    
+
     // Admin Dashboard
     adminDashboardTitle: 'Admin Dashboard',
     manageContent: 'Manage Koukian Restaurant Content',
@@ -92,7 +92,7 @@ const translations = {
     galleryImages: 'Gallery Images',
     manage: 'Manage',
     view: 'View',
-    
+
     showAdmin: 'Show Admin',
     hideAdmin: 'Hide Admin',
     addCategory: 'Add Category',
@@ -112,7 +112,7 @@ const translations = {
     save: 'Save',
     cancel: 'Cancel',
     confirmDelete: 'Are you sure you want to delete?',
-    
+
     // Terms and Conditions
     termsAndConditions: 'Terms and Conditions',
     agreeToTerms: 'I agree to the Terms and Conditions',
@@ -197,27 +197,27 @@ const translations = {
     reservation: 'الحجز',
     gallery: 'المعرض',
     contact: 'اتصل بنا',
-    
+
     // Hero Section
     heroTitle: 'كوكيان – حيث تلتقي الفخامة بالمذاق',
     heroSubtitle: 'استمتع بألذ المأكولات الشامية والبحرية في أجواء راقية وإطلالة ساحرة على البحر',
     bookNow: 'احجز الآن',
-    
+
     // About Section
     aboutTitle: 'عن كوكيان',
     fullMenu: 'القائمة الكاملة',
     aboutContent: 'في كوكيان، نجمع بين النكهات الغنية للمطبخ الشامي مع أطيب الأسماك والمأكولات البحرية الطازجة، كل ذلك مع الاستمتاع بإطلالات بحرية خلابة. يمزج طهاتنا المتمرسون الوصفات الشرق أوسطية التراثية مع تقنيات الطهي المعاصرة، مما يخلق تجربة طعام لا تُنسى حيث كل طبق يحكي قصة من التراث والإبداع.',
-    
+
     // Menu Section
     menuTitle: 'أطباقنا المميزة',
     viewFullMenu: 'عرض القائمة كاملة',
-    
+
     // Offers Section
     offersTitle: 'العروض الخاصة والفعاليات',
-    
+
     // Events Section
     events: 'الفعاليات',
-    
+
     // Reservation Form
     reservationTitle: 'احجز طاولتك',
     name: 'الاسم الكامل',
@@ -234,25 +234,25 @@ const translations = {
     outdoorSmoking: 'خارجي (مسموح التدخين)',
     outdoorNonSmoking: 'خارجي (غير مسموح التدخين)',
     submitReservation: 'احجز الطاولة',
-    
+
     // Gallery
     galleryTitle: 'المعرض',
-    
+
     // Contact
     contactTitle: 'التواصل والموقع',
     phoneLabel: 'الهاتف',
     whatsapp: 'واتساب',
     emailLabel: 'البريد الإلكتروني',
-    
+
     // Footer
     quickLinks: 'روابط سريعة',
     followUs: 'تابعنا',
-    copyright: '© ٢٠٢٤ مطعم كوكيان. جميع الحقوق محفوظة.',
-    
+    copyright: '© ٢٠٢٦ مطعم كوكيان. جميع الحقوق محفوظة.',
+
     // Menu Page
     ourMenu: 'قائمة الطعام',
     menuDescription: 'اكتشف مجموعتنا الرائعة من المأكولات الشامية والبحرية المميزة مع إطلالات بحرية ساحرة',
-    
+
     // Admin Dashboard
     adminDashboardTitle: 'لوحة التحكم',
     manageContent: 'إدارة محتوى مطعم كوكيان',
@@ -265,7 +265,7 @@ const translations = {
     galleryImages: 'صور المعرض',
     manage: 'إدارة',
     view: 'عرض',
-    
+
     showAdmin: 'إظهار الإدارة',
     hideAdmin: 'إخفاء الإدارة',
     addCategory: 'إضافة فئة',
@@ -285,7 +285,7 @@ const translations = {
     save: 'حفظ',
     cancel: 'إلغاء',
     confirmDelete: 'هل أنت متأكد من الحذف؟',
-    
+
     // Terms and Conditions
     termsAndConditions: 'الشروط والأحكام',
     agreeToTerms: 'أوافق على الشروط والأحكام',

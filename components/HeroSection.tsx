@@ -21,14 +21,14 @@ const HeroSection = () => {
           // Preload the image before setting it
           const img = new Image();
           img.src = settings.heroBackgroundImage;
-          
+
           img.onload = () => {
             setBackgroundImage(settings.heroBackgroundImage);
             setIsImageLoaded(true);
             // Small delay to ensure smooth transition
             setTimeout(() => setIsImageReady(true), 100);
           };
-          
+
           img.onerror = () => {
             console.error('Error loading hero background image');
             setIsImageLoaded(true);
@@ -45,7 +45,7 @@ const HeroSection = () => {
         setIsImageReady(true);
       }
     };
-    
+
     loadBackgroundImage();
   }, []);
 
@@ -61,12 +61,11 @@ const HeroSection = () => {
         {!isImageLoaded && (
           <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black animate-pulse" />
         )}
-        
+
         {/* Background Image with smooth transition */}
-        <div 
-          className={`w-full h-full bg-cover bg-center transition-opacity duration-1000 ${
-            isImageReady ? 'opacity-100' : 'opacity-0'
-          }`}
+        <div
+          className={`w-full h-full bg-cover bg-center transition-opacity duration-1000 ${isImageReady ? 'opacity-100' : 'opacity-0'
+            }`}
           style={{
             backgroundImage: `url('${backgroundImage}')`,
           }}
@@ -78,15 +77,13 @@ const HeroSection = () => {
       {/* Content */}
       <div className="relative z-10 container mx-auto px-4 text-center pt-16 md:pt-0">
         <div className="max-w-5xl mx-auto animate-slide-up">
-          <h1 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-2xl ${
-            isRTL ? 'font-arabic' : 'font-english'
-          }`}>
+          <h1 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-2xl ${isRTL ? 'font-arabic' : 'font-english'
+            }`}>
             {t('heroTitle')}
           </h1>
-          
-          <p className={`text-base sm:text-lg md:text-xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed drop-shadow-lg px-4 ${
-            isRTL ? 'font-arabic' : 'font-english'
-          }`}>
+
+          <p className={`text-base sm:text-lg md:text-xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed drop-shadow-lg px-4 ${isRTL ? 'font-arabic' : 'font-english'
+            }`}>
             {t('heroSubtitle')}
           </p>
 
@@ -94,30 +91,28 @@ const HeroSection = () => {
             <Button
               size="lg"
               onClick={scrollToReservation}
-              className={`w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-semibold px-8 py-4 text-lg transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-3xl rounded-full border-2 border-yellow-400/50 ${
-                isRTL ? 'font-arabic' : 'font-english'
-              }`}
+              className={`w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-8 py-4 text-lg transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-3xl rounded-full border-2 border-blue-400/50 ${isRTL ? 'font-arabic' : 'font-english'
+                }`}
             >
               {t('bookNow')}
             </Button>
-            
+
             <Button
               size="lg"
               variant="outline"
               onClick={() => window.location.href = '/menu'}
-              className={`w-full sm:w-auto bg-transparent border-2 border-white/80 text-white hover:bg-white hover:text-black font-semibold px-8 py-4 text-lg transition-all duration-300 transform hover:scale-105 rounded-full backdrop-blur-sm ${
-                isRTL ? 'font-arabic' : 'font-english'
-              }`}
+              className={`w-full sm:w-auto bg-transparent border-2 border-white/80 text-white hover:bg-white hover:text-black font-semibold px-8 py-4 text-lg transition-all duration-300 transform hover:scale-105 rounded-full backdrop-blur-sm ${isRTL ? 'font-arabic' : 'font-english'
+                }`}
             >
               {language === 'ar' ? 'القائمة' : 'Menu'}
             </Button>
           </div>
         </div>
-        
+
         {/* Floating Elements */}
-        <div className="absolute top-1/4 left-10 w-20 h-20 bg-yellow-400/10 rounded-full blur-xl animate-pulse hidden lg:block" />
+        <div className="absolute top-1/4 left-10 w-20 h-20 bg-blue-400/10 rounded-full blur-xl animate-pulse hidden lg:block" />
         <div className="absolute top-1/3 right-16 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse hidden lg:block" />
-        <div className="absolute bottom-1/4 left-1/4 w-16 h-16 bg-yellow-600/20 rounded-full blur-lg animate-pulse hidden lg:block" />
+        <div className="absolute bottom-1/4 left-1/4 w-16 h-16 bg-blue-600/20 rounded-full blur-lg animate-pulse hidden lg:block" />
       </div>
 
       {/* Scroll Indicator */}
@@ -128,7 +123,7 @@ const HeroSection = () => {
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="text-white/60 hover:text-yellow-400 transition-colors duration-300 cursor-pointer drop-shadow-lg"
+          className="text-white/60 hover:text-blue-400 transition-colors duration-300 cursor-pointer drop-shadow-lg"
           onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
         >
           <path

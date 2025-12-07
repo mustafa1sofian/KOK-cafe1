@@ -23,7 +23,7 @@ const GallerySection = () => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const imagesData = await getGalleryImages();
       setGalleryImages(imagesData);
     } catch (err) {
@@ -84,15 +84,13 @@ const GallerySection = () => {
     <section ref={sectionRef} id="gallery" className="py-16 md:py-20 bg-gradient-to-b from-white to-gray-50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12 md:mb-16">
-          <h2 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-black to-gray-700 bg-clip-text text-transparent mb-4 md:mb-6 ${
-            isVisible ? 'animate-slide-up-fast' : 'opacity-0'
-          } ${isRTL ? 'font-arabic' : 'font-english'}`}>
+          <h2 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-black to-gray-700 bg-clip-text text-transparent mb-4 md:mb-6 ${isVisible ? 'animate-slide-up-fast' : 'opacity-0'
+            } ${isRTL ? 'font-arabic' : 'font-english'}`}>
             {t('galleryTitle')}
           </h2>
-          <p className={`text-gray-600 text-base md:text-lg max-w-2xl mx-auto px-4 leading-relaxed ${
-            isRTL ? 'font-arabic' : 'font-english'
-          }`}>
-            {language === 'ar' 
+          <p className={`text-gray-600 text-base md:text-lg max-w-2xl mx-auto px-4 leading-relaxed ${isRTL ? 'font-arabic' : 'font-english'
+            }`}>
+            {language === 'ar'
               ? 'استكشف أجواء المطعم الفاخرة وأطباقنا المميزة من خلال معرض الصور'
               : 'Explore our luxurious restaurant atmosphere and signature dishes through our photo gallery'
             }
@@ -103,7 +101,7 @@ const GallerySection = () => {
         {isLoading && (
           <div className="flex justify-center items-center py-16">
             <div className="text-center">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-yellow-600" />
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
               <p className={`text-gray-600 ${isRTL ? 'font-arabic' : 'font-english'}`}>
                 {language === 'ar' ? 'جاري تحميل صور المعرض...' : 'Loading gallery images...'}
               </p>
@@ -121,9 +119,8 @@ const GallerySection = () => {
               </p>
               <button
                 onClick={loadGalleryImages}
-                className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
-                  isRTL ? 'font-arabic' : 'font-english'
-                }`}
+                className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${isRTL ? 'font-arabic' : 'font-english'
+                  }`}
               >
                 {language === 'ar' ? 'إعادة المحاولة' : 'Try Again'}
               </button>
@@ -139,7 +136,7 @@ const GallerySection = () => {
               {language === 'ar' ? 'لا توجد صور في المعرض حالياً' : 'No images in gallery yet'}
             </p>
             <p className={`text-gray-500 text-sm mt-2 ${isRTL ? 'font-arabic' : 'font-english'}`}>
-              {language === 'ar' 
+              {language === 'ar'
                 ? 'يمكنك إضافة صور من لوحة التحكم'
                 : 'You can add images from the admin dashboard'
               }
@@ -156,9 +153,8 @@ const GallerySection = () => {
                 {galleryImages.map((image, index) => (
                   <div
                     key={image.id}
-                    className={`break-inside-avoid cursor-pointer group ${
-                      isVisible ? 'animate-fade-in' : 'opacity-0'
-                    }`}
+                    className={`break-inside-avoid cursor-pointer group ${isVisible ? 'animate-fade-in' : 'opacity-0'
+                      }`}
                     style={{ animationDelay: `${index * 0.1}s` }}
                     onClick={() => openModal(image.imageUrl)}
                   >
@@ -187,9 +183,8 @@ const GallerySection = () => {
               {galleryImages.map((image, index) => (
                 <div
                   key={image.id}
-                  className={`cursor-pointer group ${
-                    isVisible ? 'animate-fade-in' : 'opacity-0'
-                  }`}
+                  className={`cursor-pointer group ${isVisible ? 'animate-fade-in' : 'opacity-0'
+                    }`}
                   style={{ animationDelay: `${index * 0.1}s` }}
                   onClick={() => openModal(image.imageUrl)}
                 >
@@ -217,7 +212,7 @@ const GallerySection = () => {
 
       {/* Modal */}
       {selectedImage && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={closeModal}
         >

@@ -10,6 +10,7 @@ import ReservationSection from '@/components/ReservationSection';
 import GallerySection from '@/components/GallerySection';
 import ContactSection from '@/components/ContactSection';
 import Footer from '@/components/Footer';
+import Chatbot from '@/components/Chatbot';
 import { useEffect, useState } from 'react';
 import { getSiteSettings } from '@/lib/firestore';
 
@@ -28,7 +29,7 @@ export default function Home() {
         console.error('Error loading site settings:', error);
       }
     };
-    
+
     loadSiteSettings();
   }, []);
 
@@ -44,6 +45,9 @@ export default function Home() {
       <GallerySection />
       <ContactSection />
       <Footer />
+
+      {/* AI Chatbot - يظهر فقط في الصفحة الرئيسية */}
+      <Chatbot />
     </main>
   );
 }
