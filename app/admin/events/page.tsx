@@ -1,15 +1,23 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
-import { 
+import { Switch } from '@/components/ui/switch';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   ArrowLeft,
   Plus,
   Edit,
@@ -22,12 +30,22 @@ import {
   Music,
   Utensils,
   Star,
-  X,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Search,
+  Filter,
+  Eye,
+  EyeOff,
+  MoreHorizontal
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Import Firestore functions
 import {
@@ -35,12 +53,18 @@ import {
   addEvent,
   updateEvent,
   deleteEvent,
-  uploadImage,
-  deleteImage,
+  // uploadImage, // Removed Firebase upload
+  deleteImage, // Kept for legacy firebase images
   getSiteSettings,
   updateSiteSettings,
   type Event as FirestoreEvent
 } from '@/lib/firestore';
+
+// Import ImgBB functions
+import {
+  uploadImageToImgBB,
+  validateImageFile
+} from '@/lib/imgbb';
 
 interface Event extends FirestoreEvent {
   // All properties inherited from FirestoreEvent
@@ -49,18 +73,18 @@ interface Event extends FirestoreEvent {
 const EventsManagementPage = () => {
   const { language, isRTL } = useLanguage();
   const router = useRouter();
-  
+
   // Loading and error states
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Dialog states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogAction, setDialogAction] = useState<'add' | 'edit'>('add');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  
+
   // Form data
   const [formData, setFormData] = useState({
     titleEn: '',
@@ -69,18 +93,22 @@ const EventsManagementPage = () => {
     descriptionAr: '',
     date: '',
     time: '',
-    price: '',
+    // price removed
     imageFile: null as File | null,
     imageUrl: '',
-    category: '',
+    // category removed
     capacity: '',
     isActive: true
   });
 
   // Data state
   const [events, setEvents] = useState<Event[]>([]);
-  const [showInactiveEvents, setShowInactiveEvents] = useState(false);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Settings State
   const [showEventsSection, setShowEventsSection] = useState(true);
+  const [showHeroTicker, setShowHeroTicker] = useState(true);
 
   // Check authentication
   useEffect(() => {
@@ -90,35 +118,52 @@ const EventsManagementPage = () => {
     }
   }, [router]);
 
-  // Load events from Firestore
-  const loadEvents = async () => {
+  // Load events & settings
+  const loadData = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const eventsData = await getEvents();
+      const [eventsData, siteSettings] = await Promise.all([
+        getEvents(),
+        getSiteSettings()
+      ]);
+
       setEvents(eventsData);
-      
-      // Load site settings to get events section visibility
-      const siteSettings = await getSiteSettings();
+      setFilteredEvents(eventsData);
       setShowEventsSection(siteSettings?.showEventsSection ?? true);
+      setShowHeroTicker(siteSettings?.showHeroTicker ?? true);
+
     } catch (err) {
-      console.error('Error loading events:', err);
-      setError(language === 'ar' ? 'حدث خطأ في تحميل الفعاليات' : 'Error loading events');
+      console.error('Error loading data:', err);
+      setError(language === 'ar' ? 'حدث خطأ في تحميل البيانات' : 'Error loading data');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Load data on component mount
   useEffect(() => {
-    loadEvents();
+    loadData();
   }, []);
+
+  // Filter Logic
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredEvents(events);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredEvents(events.filter(e =>
+        e.titleEn.toLowerCase().includes(query) ||
+        e.titleAr.includes(query) ||
+        e.descriptionEn.toLowerCase().includes(query)
+      ));
+    }
+  }, [searchQuery, events]);
 
   const openDialog = (action: 'add' | 'edit', event?: Event) => {
     setDialogAction(action);
     setSelectedEvent(event || null);
-    
+
     if (action === 'edit' && event) {
       setFormData({
         titleEn: event.titleEn,
@@ -127,10 +172,10 @@ const EventsManagementPage = () => {
         descriptionAr: event.descriptionAr,
         date: event.date.toISOString().split('T')[0],
         time: event.time,
-        price: event.price.toString(),
+        // price removed
         imageFile: null,
         imageUrl: event.imageUrl || '',
-        category: event.category,
+        // category removed
         capacity: event.capacity.toString(),
         isActive: event.isActive
       });
@@ -142,22 +187,22 @@ const EventsManagementPage = () => {
         descriptionAr: '',
         date: '',
         time: '',
-        price: '',
+        // price removed
         imageFile: null,
         imageUrl: '',
-        category: '',
+        // category removed
         capacity: '',
         isActive: true
       });
     }
-    
+
     setIsDialogOpen(true);
     setSubmitStatus('idle');
   };
 
   const handleSave = async () => {
     // Validation
-    if (!formData.titleEn.trim() || !formData.titleAr.trim() || !formData.date || !formData.time || !formData.price.trim() || !formData.category || !formData.capacity.trim()) {
+    if (!formData.titleEn.trim() || !formData.titleAr.trim() || !formData.date || !formData.time || !formData.capacity.trim()) {
       setSubmitStatus('error');
       return;
     }
@@ -168,11 +213,29 @@ const EventsManagementPage = () => {
 
       // Upload image if a new file is selected
       if (formData.imageFile) {
-        const imagePath = `events/${Date.now()}-${formData.imageFile.name}`;
-        imageUrl = await uploadImage(formData.imageFile, imagePath);
-        
-        // Delete old image if editing and old image exists
-        if (dialogAction === 'edit' && selectedEvent?.imageUrl) {
+        // Validate
+        const validation = validateImageFile(formData.imageFile);
+        if (!validation.isValid) {
+          alert(validation.error); // Simple alert or custom UI error
+          setSubmitStatus('error');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Upload to ImgBB
+        try {
+          imageUrl = await uploadImageToImgBB(formData.imageFile);
+        } catch (uploadErr) {
+          console.error(uploadErr);
+          alert(language === 'ar' ? 'فشل رفع الصورة' : 'Image upload failed');
+          setSubmitStatus('error');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Note: We don't delete old images from ImgBB via API usually.
+        // But if the old image was Firebase (legacy), we might try to delete it.
+        if (dialogAction === 'edit' && selectedEvent?.imageUrl && selectedEvent.imageUrl !== imageUrl) {
           try {
             await deleteImage(selectedEvent.imageUrl);
           } catch (error) {
@@ -188,9 +251,9 @@ const EventsManagementPage = () => {
         descriptionAr: formData.descriptionAr.trim(),
         date: new Date(formData.date),
         time: formData.time,
-        price: parseFloat(formData.price),
-        imageUrl,
-        category: formData.category,
+        price: 0, // Default to 0 as field is removed
+        imageUrl: imageUrl || '', // Allow empty string for no image
+        category: 'general', // Default to general
         capacity: parseInt(formData.capacity),
         isActive: formData.isActive,
         order: dialogAction === 'add' ? events.length + 1 : selectedEvent?.order || 1
@@ -203,12 +266,12 @@ const EventsManagementPage = () => {
       }
 
       setSubmitStatus('success');
-      await loadEvents(); // Reload data
-      
+      await loadData();
+
       setTimeout(() => {
         setIsDialogOpen(false);
         setSubmitStatus('idle');
-      }, 1500);
+      }, 1000);
     } catch (error) {
       console.error('Error saving event:', error);
       setSubmitStatus('error');
@@ -221,23 +284,12 @@ const EventsManagementPage = () => {
     if (confirm(language === 'ar' ? 'هل أنت متأكد من الحذف؟' : 'Are you sure you want to delete?')) {
       try {
         setIsSubmitting(true);
-        
-        // Find the event to get its image URL
         const event = events.find(e => e.id === eventId);
-        
-        // Delete the event
         await deleteEvent(eventId);
-
-        // Delete the image if it exists
         if (event?.imageUrl) {
-          try {
-            await deleteImage(event.imageUrl);
-          } catch (error) {
-            console.warn('Error deleting image:', error);
-          }
+          try { await deleteImage(event.imageUrl); } catch (e) { console.warn(e); }
         }
-
-        await loadEvents(); // Reload data
+        await loadData();
       } catch (error) {
         console.error('Error deleting event:', error);
         setError(language === 'ar' ? 'حدث خطأ في حذف الفعالية' : 'Error deleting event');
@@ -249,36 +301,31 @@ const EventsManagementPage = () => {
 
   const handleToggleActive = async (event: Event) => {
     try {
-      setIsSubmitting(true);
       await updateEvent(event.id, { isActive: !event.isActive });
-      await loadEvents(); // Reload data
+      await loadData(); // Optimistic update would be better but simple reload works
     } catch (error) {
       console.error('Error updating event status:', error);
-      setError(language === 'ar' ? 'حدث خطأ في تحديث حالة الفعالية' : 'Error updating event status');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const handleToggleEventsSection = async () => {
+  const handleSettingsUpdate = async (key: 'showEventsSection' | 'showHeroTicker', value: boolean) => {
     try {
-      setIsSubmitting(true);
-      const newVisibility = !showEventsSection;
-      
-      // Update site settings
+      // Optimistic Update
+      if (key === 'showEventsSection') setShowEventsSection(value);
+      if (key === 'showHeroTicker') setShowHeroTicker(value);
+
       const currentSettings = await getSiteSettings();
       await updateSiteSettings({
         heroBackgroundImage: currentSettings?.heroBackgroundImage || '',
         aboutSectionImage: currentSettings?.aboutSectionImage || '',
-        showEventsSection: newVisibility
+        showEventsSection: key === 'showEventsSection' ? value : showEventsSection,
+        showOffersSection: currentSettings?.showOffersSection ?? true,
+        showHeroTicker: key === 'showHeroTicker' ? value : showHeroTicker
       });
-      
-      setShowEventsSection(newVisibility);
     } catch (error) {
-      console.error('Error updating events section visibility:', error);
-      setError(language === 'ar' ? 'حدث خطأ في تحديث إعدادات القسم' : 'Error updating section settings');
-    } finally {
-      setIsSubmitting(false);
+      console.error('Error updating settings:', error);
+      // Revert on error
+      loadData();
     }
   };
 
@@ -286,8 +333,6 @@ const EventsManagementPage = () => {
     const file = e.target.files?.[0];
     if (file) {
       setFormData(prev => ({ ...prev, imageFile: file }));
-      
-      // Create preview URL
       const reader = new FileReader();
       reader.onload = (event) => {
         setFormData(prev => ({ ...prev, imageUrl: event.target?.result as string }));
@@ -296,34 +341,6 @@ const EventsManagementPage = () => {
     }
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'music':
-        return Music;
-      case 'tasting':
-        return Star;
-      case 'dining':
-        return Utensils;
-      case 'celebration':
-        return Calendar;
-      default:
-        return Calendar;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  // Get today's date in YYYY-MM-DD format
-  const today = new Date().toISOString().split('T')[0];
-
   const categoryOptions = [
     { value: 'music', labelEn: 'Music', labelAr: 'موسيقى' },
     { value: 'tasting', labelEn: 'Tasting', labelAr: 'تذوق' },
@@ -331,526 +348,387 @@ const EventsManagementPage = () => {
     { value: 'celebration', labelEn: 'Celebration', labelAr: 'احتفال' }
   ];
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'} flex items-center justify-center`}>
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
-          <p className={`text-gray-600 ${isRTL ? 'font-arabic' : 'font-english'}`}>
-            {language === 'ar' ? 'جاري تحميل الفعاليات...' : 'Loading events...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'} flex items-center justify-center`}>
-        <div className="text-center">
-          <AlertCircle className="w-8 h-8 mx-auto mb-4 text-red-600" />
-          <p className={`text-red-600 mb-4 ${isRTL ? 'font-arabic' : 'font-english'}`}>
-            {error}
-          </p>
-          <Button onClick={loadEvents} variant="outline">
-            {language === 'ar' ? 'إعادة المحاولة' : 'Try Again'}
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return (
+    <div className="flex h-screen items-center justify-center bg-gray-50">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`}>
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
-        <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-          <div className={`flex items-center space-x-4 rtl:space-x-reverse ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <Button
-              onClick={() => router.push('/admin')}
-              variant="ghost"
-              size="sm"
-              className="text-gray-600 hover:text-gray-800"
-            >
-              <ArrowLeft className={`w-5 h-5 ${isRTL ? 'rotate-180' : ''}`} />
-            </Button>
-            <div>
-              <h1 className={`text-2xl font-bold text-gray-800 ${isRTL ? 'font-arabic' : 'font-english'}`}>
-                {language === 'ar' ? 'إدارة الفعاليات' : 'Manage Events'}
-              </h1>
-              <p className={`text-gray-600 mt-1 ${isRTL ? 'font-arabic' : 'font-english'}`}>
-                {language === 'ar' ? 'إضافة وتعديل فعاليات المطعم' : 'Add and edit restaurant events'}
+    <div className={`min-h-screen bg-gray-50/50 ${isRTL ? 'rtl' : 'ltr'}`}>
+
+      {/* Top Header */}
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b bg-white/80 px-6 py-4 backdrop-blur-xl">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/admin')}>
+            <ArrowLeft className={`h-5 w-5 ${isRTL ? 'rotate-180' : ''}`} />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">
+              {language === 'ar' ? 'إدارة الفعاليات' : 'Events Management'}
+            </h1>
+          </div>
+        </div>
+        <Button onClick={() => openDialog('add')} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+          <Plus className="h-4 w-4" />
+          {language === 'ar' ? 'إضافة فعالية' : 'Add Event'}
+        </Button>
+      </div>
+
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+
+        {/* Controls Card */}
+        <Card className="border-none shadow-sm">
+          <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* Search */}
+            <div className="relative w-full md:w-96">
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400`} />
+              <Input
+                placeholder={language === 'ar' ? 'بحث عن فعالية...' : 'Search events...'}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={isRTL ? 'pr-9' : 'pl-9'}
+              />
+            </div>
+
+            {/* Toggles */}
+            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full border shadow-sm transition-all hover:shadow-md">
+                <Label htmlFor="show-section" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+                  {language === 'ar' ? 'عرض قسم الفعاليات' : 'Show Events Section'}
+                </Label>
+                <Switch
+                  id="show-section"
+                  checked={showEventsSection}
+                  onCheckedChange={(checked) => handleSettingsUpdate('showEventsSection', checked)}
+                  className="data-[state=checked]:bg-green-600"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full border shadow-sm transition-all hover:shadow-md">
+                <Label htmlFor="show-ticker" className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2 select-none">
+                  {language === 'ar' ? 'شريط الحفلات المتحرك' : 'Hero Ticker Strip'}
+                  <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">New</span>
+                </Label>
+                <Switch
+                  id="show-ticker"
+                  checked={showHeroTicker}
+                  onCheckedChange={(checked) => handleSettingsUpdate('showHeroTicker', checked)}
+                  className="data-[state=checked]:bg-blue-600"
+                />
+              </div>
+
+              <p className="text-xs text-gray-400 px-2">
+                * {language === 'ar' ? 'تظهر الفعاليات القادمة فقط (من تاريخ اليوم فصاعداً)' : 'Only upcoming events (from today onwards) are shown'}
               </p>
             </div>
-          </div>
-          
-          <Button
-            onClick={() => openDialog('add')}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
-            disabled={isSubmitting}
-          >
-            <Plus className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2" />
-            {language === 'ar' ? 'إضافة فعالية' : 'Add Event'}
-          </Button>
-        </div>
-      </div>
+          </CardContent>
+        </Card>
 
-      {/* Content */}
-      <div className="p-6">
-        {/* Filter Controls */}
-        <div className={`flex items-center justify-between mb-6 ${isRTL ? 'flex-row-reverse' : ''}`}>
-          <div className={`flex items-center space-x-4 rtl:space-x-reverse ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <Button
-              onClick={handleToggleEventsSection}
-              variant={showEventsSection ? "default" : "outline"}
-              className={showEventsSection 
-                ? "bg-green-600 hover:bg-green-700 text-white" 
-                : "text-red-600 border-red-600 hover:bg-red-50"
-              }
-              disabled={isSubmitting}
-            >
-              {showEventsSection 
-                ? (language === 'ar' ? 'إخفاء قسم الفعاليات' : 'Hide Events Section')
-                : (language === 'ar' ? 'إظهار قسم الفعاليات' : 'Show Events Section')
-              }
-            </Button>
-            <Button
-              onClick={() => setShowInactiveEvents(!showInactiveEvents)}
-              variant={showInactiveEvents ? "default" : "outline"}
-              className={showInactiveEvents 
-                ? "bg-gray-600 hover:bg-gray-700 text-white" 
-                : "text-gray-600 border-gray-600 hover:bg-gray-50"
-              }
-              disabled={isSubmitting}
-            >
-              {showInactiveEvents 
-                ? (language === 'ar' ? 'إخفاء الفعاليات المخفية' : 'Hide Inactive Events')
-                : (language === 'ar' ? 'إظهار الفعاليات المخفية' : 'Show Inactive Events')
-              }
-            </Button>
-            <span className={`text-sm text-gray-500 ${isRTL ? 'font-arabic' : 'font-english'}`}>
-              {events.filter(event => showInactiveEvents || event.isActive).length} {language === 'ar' ? 'فعالية' : 'events'}
-            </span>
-          </div>
-          
-          {/* Section Status Indicator */}
-          <div className={`flex items-center space-x-2 rtl:space-x-reverse ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-3 h-3 rounded-full ${showEventsSection ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className={`text-sm ${showEventsSection ? 'text-green-600' : 'text-red-600'} ${isRTL ? 'font-arabic' : 'font-english'}`}>
-              {showEventsSection 
-                ? (language === 'ar' ? 'القسم ظاهر في الصفحة الرئيسية' : 'Section visible on homepage')
-                : (language === 'ar' ? 'القسم مخفي من الصفحة الرئيسية' : 'Section hidden from homepage')
-              }
-            </span>
-          </div>
-        </div>
-
-        {events.length === 0 ? (
-          <div className="text-center py-16">
-            <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <p className={`text-gray-600 text-lg ${isRTL ? 'font-arabic' : 'font-english'}`}>
-              {language === 'ar' ? 'لا توجد فعاليات حالياً' : 'No events available'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {events.filter(event => showInactiveEvents || event.isActive).map((event) => {
-              const CategoryIcon = getCategoryIcon(event.category);
-              return (
-                <Card key={event.id} className="relative overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="absolute top-2 right-2 rtl:right-auto rtl:left-2 flex gap-1 z-10">
-                    <Button
-                      onClick={() => openDialog('edit', event)}
-                      size="sm"
-                      variant="outline"
-                      className="w-8 h-8 p-0 bg-white/90 hover:bg-white text-blue-600 border-blue-600"
-                      disabled={isSubmitting}
-                    >
-                      <Edit className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      onClick={() => handleDelete(event.id)}
-                      size="sm"
-                      variant="outline"
-                      className="w-8 h-8 p-0 bg-white/90 hover:bg-white text-red-600 border-red-600"
-                      disabled={isSubmitting}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                  
-                  <div className="aspect-[16/9] bg-gray-200 flex items-center justify-center overflow-hidden relative">
-                    {event.imageUrl ? (
-                      <img 
-                        src={event.imageUrl} 
-                        alt={language === 'ar' ? event.titleAr : event.titleEn}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <CategoryIcon className="w-12 h-12 text-gray-400" />
-                    )}
-                    
-                    {/* Price Badge */}
-                    <div className="absolute top-3 left-3 rtl:left-auto rtl:right-3">
-                      <div className="bg-yellow-600 text-black px-3 py-1 rounded-full flex items-center space-x-2 rtl:space-x-reverse">
-                        <CategoryIcon className="w-4 h-4" />
-                        <span className="text-sm font-semibold">
-                          ${event.price}
+        {/* Events Table */}
+        <Card className="border-none shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
+                <TableHead className="w-[100px]">{language === 'ar' ? 'الصورة' : 'Image'}</TableHead>
+                <TableHead>{language === 'ar' ? 'العنوان' : 'Title'}</TableHead>
+                <TableHead>{language === 'ar' ? 'التفاصيل' : 'Details'}</TableHead>
+                <TableHead>{language === 'ar' ? 'الحالة' : 'Status'}</TableHead>
+                <TableHead className="text-right">{language === 'ar' ? 'إجراءات' : 'Actions'}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredEvents.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-32 text-center text-gray-500">
+                    {language === 'ar' ? 'لا توجد فعاليات مطابقة' : 'No events found'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredEvents.map((event) => (
+                  <TableRow key={event.id} className="group">
+                    <TableCell>
+                      <div className="h-12 w-16 overflow-hidden rounded-md bg-gray-100 border relative">
+                        {event.imageUrl ? (
+                          <img src={event.imageUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Music className="h-4 w-4 text-gray-300" />
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col">
+                        <span className={isRTL ? 'font-arabic' : 'font-english'}>
+                          {language === 'ar' ? event.titleAr : event.titleEn}
                         </span>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <CardContent className="p-4">
-                    <div className={`flex items-start justify-between mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <h4 className={`font-semibold ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-                        {language === 'ar' ? event.titleAr : event.titleEn}
-                      </h4>
-                      {!event.isActive && (
-                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
-                          {language === 'ar' ? 'غير نشط' : 'Inactive'}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <p className={`text-sm text-gray-600 mb-3 line-clamp-2 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-                      {language === 'ar' ? event.descriptionAr : event.descriptionEn}
-                    </p>
-
-                    <div className="space-y-2 mb-4">
-                      <div className={`flex items-center text-sm text-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <Calendar className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-purple-600" />
-                        <span className={isRTL ? 'font-arabic' : 'font-english'}>
-                          {formatDate(event.date.toISOString())}
-                        </span>
-                      </div>
-                      
-                      <div className={`flex items-center text-sm text-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <Clock className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-purple-600" />
-                        <span className={isRTL ? 'font-arabic' : 'font-english'}>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(event.date).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
                           {event.time}
-                        </span>
+                        </div>
                       </div>
-                      
-                      <div className={`flex items-center text-sm text-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <Users className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-purple-600" />
-                        <span className={isRTL ? 'font-arabic' : 'font-english'}>
-                          {language === 'ar' 
-                            ? `${event.capacity} مقعد متاح`
-                            : `${event.capacity} seats available`
-                          }
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <span className="font-bold text-lg text-purple-600">
-                        ${event.price}
-                      </span>
-                      <Button
-                        onClick={() => handleToggleActive(event)}
-                        size="sm"
-                        variant={event.isActive ? "outline" : "default"}
-                        className={event.isActive 
-                          ? "text-green-600 border-green-600 hover:bg-green-50" 
-                          : "bg-red-600 hover:bg-red-700 text-white"
-                        }
-                        disabled={isSubmitting}
-                      >
-                        {event.isActive 
+                    </TableCell>
+                    <TableCell>
+                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${event.isActive
+                        ? 'bg-green-50 text-green-700 ring-1 ring-green-600/20'
+                        : 'bg-gray-100 text-gray-600 ring-1 ring-gray-600/20'
+                        }`}>
+                        {event.isActive
                           ? (language === 'ar' ? 'نشط' : 'Active')
-                          : (language === 'ar' ? 'غير نشط' : 'Inactive')
+                          : (language === 'ar' ? 'مخفي' : 'Inactive')
                         }
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-500 hover:text-blue-600"
+                          onClick={() => handleToggleActive(event)}
+                          title={event.isActive ? 'Deactivate' : 'Activate'}
+                        >
+                          {event.isActive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-500 hover:text-blue-600"
+                          onClick={() => openDialog('edit', event)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-500 hover:text-red-600"
+                          onClick={() => handleDelete(event.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
       </div>
 
-      {/* Dialog for Add/Edit */}
+      {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className={`max-w-2xl max-h-[90vh] overflow-y-auto ${isRTL ? 'font-arabic' : 'font-english'}`}>
+        <DialogContent className={`sm:max-w-2xl max-h-[90vh] overflow-y-auto ${isRTL ? 'font-arabic' : 'font-english'}`}>
           <DialogHeader>
-            <DialogTitle className={isRTL ? 'text-right' : 'text-left'}>
-              {dialogAction === 'add' 
+            <DialogTitle className={isRTL ? 'text-right' : 'text-left font-bold text-xl'}>
+              {dialogAction === 'add'
                 ? (language === 'ar' ? 'إضافة فعالية جديدة' : 'Add New Event')
                 : (language === 'ar' ? 'تعديل الفعالية' : 'Edit Event')
               }
             </DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Success Message */}
-            {submitStatus === 'success' && (
-              <div className={`p-4 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-3 rtl:space-x-reverse ${
-                isRTL ? 'flex-row-reverse' : ''
-              }`}>
-                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                <p className={`text-green-800 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-                  {language === 'ar' 
-                    ? 'تم حفظ الفعالية بنجاح!' 
-                    : 'Event saved successfully!'
-                  }
-                </p>
-              </div>
-            )}
-            
-            {/* Error Message */}
-            {submitStatus === 'error' && (
-              <div className={`p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3 rtl:space-x-reverse ${
-                isRTL ? 'flex-row-reverse' : ''
-              }`}>
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                <p className={`text-red-800 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-                  {language === 'ar' 
-                    ? 'يرجى ملء جميع الحقول المطلوبة' 
-                    : 'Please fill in all required fields'
-                  }
-                </p>
-              </div>
-            )}
 
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label className={isRTL ? 'text-right' : 'text-left'}>
-                {language === 'ar' ? 'صورة الفعالية' : 'Event Image'}
-              </Label>
-              <div className="space-y-3">
-                {formData.imageUrl && (
-                  <div className="aspect-[16/9] w-full max-w-sm mx-auto overflow-hidden rounded-lg border">
-                    <img
-                      src={formData.imageUrl}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+
+            {/* Left Column: Image & Basic Info */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>{language === 'ar' ? 'صورة الغلاف (اختياري)' : 'Cover Image (Optional)'}</Label>
+                <p className={`text-xs text-gray-500 mb-2 ${isRTL ? 'text-right font-arabic' : 'text-left font-english'}`}>
+                  {language === 'ar'
+                    ? 'الحد الأقصى: 32 ميجابايت. الصيغ المدعومة: JPG, PNG, GIF, WebP'
+                    : 'Max size: 32MB. Supported formats: JPG, PNG, GIF, WebP'
+                  }
+                </p>
+                <div className="relative aspect-video w-full overflow-hidden rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors">
+                  {formData.imageUrl ? (
+                    <>
+                      <img src={formData.imageUrl} alt="Preview" className="h-full w-full object-cover" />
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        className="absolute top-2 right-2 h-6 w-6"
+                        onClick={() => setFormData({ ...formData, imageUrl: '', imageFile: null })}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </>
+                  ) : (
+                    <label className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 text-gray-400">
+                      <Upload className="h-8 w-8" />
+                      <span className="text-xs">{language === 'ar' ? 'رفع صورة إلى ImgBB' : 'Upload Image to ImgBB'}</span>
+                      <Input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">{language === 'ar' ? 'السعة' : 'Capacity'}</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="50"
+                  value={formData.capacity}
+                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                />
+              </div>
+
+              {/* Scheduling Section */}
+              <div className="col-span-2 mt-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                    <Label className="text-sm font-semibold text-gray-800">
+                      {language === 'ar' ? 'جدولة الإعلان' : 'Schedule Publishing'}
+                    </Label>
+                  </div>
+                  <Switch
+                    checked={formData.isScheduled}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isScheduled: checked })}
+                    className="data-[state=checked]:bg-blue-600"
+                  />
+                </div>
+
+                {formData.isScheduled && (
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-700">
+                        {language === 'ar' ? 'تاريخ النشر' : 'Publish Date'}
+                      </Label>
+                      <Input
+                        type="date"
+                        value={formData.publishDate}
+                        onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
+                        className="bg-white"
+                      />
+                      <p className="text-[10px] text-gray-500">
+                        {language === 'ar' ? 'متى يبدأ ظهور الحفلة' : 'When event starts showing'}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-700">
+                        {language === 'ar' ? 'تاريخ الإخفاء' : 'Unpublish Date'}
+                      </Label>
+                      <Input
+                        type="date"
+                        value={formData.unpublishDate}
+                        onChange={(e) => setFormData({ ...formData, unpublishDate: e.target.value })}
+                        className="bg-white"
+                      />
+                      <p className="text-[10px] text-gray-500">
+                        {language === 'ar' ? 'متى يتوقف ظهور الحفلة' : 'When event stops showing'}
+                      </p>
+                    </div>
                   </div>
                 )}
+
+                {!formData.isScheduled && (
+                  <p className="text-xs text-gray-600 mt-2">
+                    {language === 'ar'
+                      ? 'عند التفعيل، يمكنك تحديد متى تظهر وتختفي الحفلة تلقائياً'
+                      : 'When enabled, you can set when the event appears and disappears automatically'}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column: Titles & Details */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">English Title</Label>
+                  <Input
+                    value={formData.titleEn}
+                    onChange={(e) => setFormData({ ...formData, titleEn: e.target.value })}
+                    className="font-english"
+                    placeholder="Jazz Night..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">العنوان بالعربية</Label>
+                  <Input
+                    value={formData.titleAr}
+                    onChange={(e) => setFormData({ ...formData, titleAr: e.target.value })}
+                    className="font-arabic text-right"
+                    placeholder="ليلة الجاز..."
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">{language === 'ar' ? 'التوقيت' : 'Timing'}</Label>
                 <div className="flex gap-2">
                   <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="image-upload"
-                    disabled={isSubmitting}
+                    type="date"
+                    className="flex-1"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    min={new Date().toISOString().split('T')[0]}
                   />
-                  <Label
-                    htmlFor="image-upload"
-                    className="flex-1 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
-                      <Upload className="w-4 h-4" />
-                      <span>{language === 'ar' ? 'رفع صورة' : 'Upload Image'}</span>
-                    </div>
-                  </Label>
+                  <Input
+                    type="time"
+                    className="w-32"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">English Description</Label>
+                  <Textarea
+                    rows={2}
+                    value={formData.descriptionEn}
+                    onChange={(e) => setFormData({ ...formData, descriptionEn: e.target.value })}
+                    className="font-english resize-none"
+                    placeholder="Details about the event..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">الوصف بالعربية</Label>
+                  <Textarea
+                    rows={2}
+                    value={formData.descriptionAr}
+                    onChange={(e) => setFormData({ ...formData, descriptionAr: e.target.value })}
+                    className="font-arabic text-right resize-none"
+                    placeholder="تفاصيل الفعالية..."
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Title English */}
-            <div className="space-y-2">
-              <Label className={isRTL ? 'text-right' : 'text-left'}>
-                {language === 'ar' ? 'عنوان الفعالية بالإنجليزية *' : 'Event Title (English) *'}
-              </Label>
-              <Input
-                value={formData.titleEn}
-                onChange={(e) => setFormData({...formData, titleEn: e.target.value})}
-                className="text-left font-english"
-                placeholder="Enter event title in English"
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-
-            {/* Title Arabic */}
-            <div className="space-y-2">
-              <Label className={isRTL ? 'text-right' : 'text-left'}>
-                {language === 'ar' ? 'عنوان الفعالية بالعربية *' : 'Event Title (Arabic) *'}
-              </Label>
-              <Input
-                value={formData.titleAr}
-                onChange={(e) => setFormData({...formData, titleAr: e.target.value})}
-                className="text-right font-arabic"
-                placeholder="أدخل عنوان الفعالية بالعربية"
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-
-            {/* Description English */}
-            <div className="space-y-2">
-              <Label className={isRTL ? 'text-right' : 'text-left'}>
-                {language === 'ar' ? 'وصف الفعالية بالإنجليزية' : 'Event Description (English)'}
-              </Label>
-              <Textarea
-                value={formData.descriptionEn}
-                onChange={(e) => setFormData({...formData, descriptionEn: e.target.value})}
-                className="text-left font-english"
-                placeholder="Enter event description in English"
-                rows={3}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            {/* Description Arabic */}
-            <div className="space-y-2">
-              <Label className={isRTL ? 'text-right' : 'text-left'}>
-                {language === 'ar' ? 'وصف الفعالية بالعربية' : 'Event Description (Arabic)'}
-              </Label>
-              <Textarea
-                value={formData.descriptionAr}
-                onChange={(e) => setFormData({...formData, descriptionAr: e.target.value})}
-                className="text-right font-arabic"
-                placeholder="أدخل وصف الفعالية بالعربية"
-                rows={3}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            {/* Date and Time */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className={isRTL ? 'text-right' : 'text-left'}>
-                  {language === 'ar' ? 'التاريخ *' : 'Date *'}
-                </Label>
-                <Input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
-                  min={today}
-                  className={isRTL ? 'text-right' : 'text-left'}
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className={isRTL ? 'text-right' : 'text-left'}>
-                  {language === 'ar' ? 'الوقت *' : 'Time *'}
-                </Label>
-                <Input
-                  type="time"
-                  value={formData.time}
-                  onChange={(e) => setFormData({...formData, time: e.target.value})}
-                  className={isRTL ? 'text-right' : 'text-left'}
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Price and Capacity */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className={isRTL ? 'text-right' : 'text-left'}>
-                  {language === 'ar' ? 'السعر (ريال سعودي) *' : 'Price (SAR) *'}
-                </Label>
-                <Input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
-                  className={isRTL ? 'text-right' : 'text-left'}
-                  placeholder={language === 'ar' ? 'أدخل السعر بالريال' : 'Enter price in SAR'}
-                  min="0"
-                  step="0.01"
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className={isRTL ? 'text-right' : 'text-left'}>
-                  {language === 'ar' ? 'السعة *' : 'Capacity *'}
-                </Label>
-                <Input
-                  type="number"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({...formData, capacity: e.target.value})}
-                  className={isRTL ? 'text-right' : 'text-left'}
-                  placeholder={language === 'ar' ? 'عدد المقاعد' : 'Number of seats'}
-                  min="1"
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Category */}
-            <div className="space-y-2">
-              <Label className={isRTL ? 'text-right' : 'text-left'}>
-                {language === 'ar' ? 'فئة الفعالية *' : 'Event Category *'}
-              </Label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                className={`w-full p-2 border rounded-md ${isRTL ? 'text-right' : 'text-left'}`}
-                required
-                disabled={isSubmitting}
-              >
-                <option value="">
-                  {language === 'ar' ? 'اختر الفئة' : 'Select Category'}
-                </option>
-                {categoryOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {language === 'ar' ? option.labelAr : option.labelEn}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Active toggle */}
-            <div className="space-y-2">
-              <Label className={isRTL ? 'text-right' : 'text-left'}>
-                {language === 'ar' ? 'حالة الفعالية' : 'Event Status'}
-              </Label>
-              <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
-                  className="rounded"
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="isActive" className="text-sm">
-                  {language === 'ar' ? 'الفعالية نشطة ومتاحة' : 'Event is active and available'}
-                </Label>
-              </div>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className={`flex gap-3 pt-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <Button 
-                onClick={handleSave} 
-                className="flex-1 bg-green-600 hover:bg-green-700"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2" />
-                )}
-                {language === 'ar' ? 'حفظ' : 'Save'}
-              </Button>
-              <Button 
-                onClick={() => setIsDialogOpen(false)} 
-                variant="outline" 
-                className="flex-1"
-                disabled={isSubmitting}
-              >
-                <X className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2" />
-                {language === 'ar' ? 'إلغاء' : 'Cancel'}
-              </Button>
-            </div>
           </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            {submitStatus === 'error' && (
+              <p className="text-red-500 text-sm flex items-center mr-auto">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                Missing required fields
+              </p>
+            )}
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>
+              {language === 'ar' ? 'إلغاء' : 'Cancel'}
+            </Button>
+            <Button onClick={handleSave} disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white">
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              {language === 'ar' ? 'حفظ التغييرات' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };

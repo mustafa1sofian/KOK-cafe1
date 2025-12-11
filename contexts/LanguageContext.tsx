@@ -29,6 +29,7 @@ const translations = {
     heroTitle: 'Koukian – Where Luxury Meets Taste',
     heroSubtitle: 'Savor the finest Levantine and seafood dishes in an elegant ambiance with a stunning sea view',
     bookNow: 'Book Now',
+    viewMenu: 'View Menu',
 
     // About Section
     aboutTitle: 'About Koukian',
@@ -202,6 +203,7 @@ const translations = {
     heroTitle: 'كوكيان – حيث تلتقي الفخامة بالمذاق',
     heroSubtitle: 'استمتع بألذ المأكولات الشامية والبحرية في أجواء راقية وإطلالة ساحرة على البحر',
     bookNow: 'احجز الآن',
+    viewMenu: 'القائمة',
 
     // About Section
     aboutTitle: 'عن كوكيان',

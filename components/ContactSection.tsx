@@ -7,9 +7,7 @@ import { Phone, MessageCircle, Mail, MapPin, Clock, Loader2, AlertCircle } from 
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getContactInfo, getWorkingHours, type ContactInfo as FirestoreContactInfo, type WorkingHour as FirestoreWorkingHour } from '@/lib/firestore';
 
-interface ContactInfo extends Omit<FirestoreContactInfo, 'id' | 'updatedAt'> {
-  // All properties inherited from FirestoreContactInfo except id and updatedAt
-}
+interface ContactInfo extends Omit<FirestoreContactInfo, 'id' | 'updatedAt'> {}
 
 interface WorkingHour extends Omit<FirestoreWorkingHour, 'id' | 'updatedAt'> {
   // All properties inherited from FirestoreWorkingHour except id and updatedAt
@@ -25,7 +23,22 @@ const ContactSection = () => {
     whatsapps: [],
     emails: [],
     addressEn: '',
-    addressAr: ''
+    addressAr: '',
+    contactIconLinks: {
+      phone: '',
+      whatsapp: '',
+      email: '',
+      address: ''
+    },
+    sidebarWhatsappLink: '',
+    footerLinks: {
+      phone: '',
+      location: '',
+      instagram: '',
+      snapchat: '',
+      whatsapp: ''
+    },
+    addressLink: ''
   });
   const [workingHoursData, setWorkingHoursData] = useState<WorkingHour[]>([]);
   const sectionRef = useRef<HTMLElement>(null);
@@ -44,7 +57,22 @@ const ContactSection = () => {
           whatsapps: contactInfo.whatsapps,
           emails: contactInfo.emails,
           addressEn: contactInfo.addressEn,
-          addressAr: contactInfo.addressAr
+          addressAr: contactInfo.addressAr,
+          contactIconLinks: {
+            phone: contactInfo.contactIconLinks?.phone ?? '',
+            whatsapp: contactInfo.contactIconLinks?.whatsapp ?? '',
+            email: contactInfo.contactIconLinks?.email ?? '',
+            address: contactInfo.contactIconLinks?.address ?? ''
+          },
+          sidebarWhatsappLink: contactInfo.sidebarWhatsappLink ?? '',
+          footerLinks: {
+            phone: contactInfo.footerLinks?.phone ?? '',
+            location: contactInfo.footerLinks?.location ?? '',
+            instagram: contactInfo.footerLinks?.instagram ?? '',
+            snapchat: contactInfo.footerLinks?.snapchat ?? '',
+            whatsapp: contactInfo.footerLinks?.whatsapp ?? ''
+          },
+          addressLink: contactInfo.addressLink ?? ''
         });
       }
 
@@ -96,7 +124,9 @@ const ContactSection = () => {
         icon: Phone,
         label: language === 'ar' ? `هاتف المطعم ${index + 1}` : `Restaurant Phone ${index + 1}`,
         value: phone,
-        href: `tel:${phone.replace(/\D/g, '')}`,
+        href: contactData.contactIconLinks?.phone?.trim()
+          ? contactData.contactIconLinks.phone
+          : `tel:${phone.replace(/\\D/g, '')}`,
         type: 'phone',
         index
       });
@@ -120,7 +150,9 @@ const ContactSection = () => {
         icon: Mail,
         label: language === 'ar' ? `البريد الإلكتروني ${index + 1}` : `Email ${index + 1}`,
         value: email,
-        href: `mailto:${email}`,
+        href: contactData.contactIconLinks?.email?.trim()
+          ? contactData.contactIconLinks.email
+          : `mailto:${email}`,
         type: 'email',
         index
       });
@@ -131,7 +163,9 @@ const ContactSection = () => {
       icon: MapPin,
       label: language === 'ar' ? 'العنوان' : 'Address',
       value: language === 'ar' ? contactData.addressAr : contactData.addressEn,
-      href: `https://maps.google.com/?q=${encodeURIComponent(contactData.addressEn)}`,
+      href: contactData.contactIconLinks?.address?.trim()
+        ? contactData.contactIconLinks.address
+        : `https://maps.google.com/?q=${encodeURIComponent(contactData.addressEn)}`,
       type: 'address',
       index: 0
     });

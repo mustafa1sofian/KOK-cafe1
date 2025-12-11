@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, Users, Music, Utensils, Star, Loader2, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Users, Music, Utensils, Star, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getEvents, addEventReservation, addReservation, type Event as FirestoreEvent } from '@/lib/firestore';
 
@@ -34,6 +34,7 @@ const EventsSection = () => {
     children: 0
   });
   const sectionRef = useRef<HTMLElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const openReservationModal = (event: Event) => {
     setSelectedEvent(event);
@@ -48,6 +49,27 @@ const EventsSection = () => {
     setSubmitStatus('idle');
     setPhoneError('');
     setIsReservationModalOpen(true);
+  };
+
+  const handleBookNowClick = (event: Event) => {
+    if (typeof window !== 'undefined') {
+      const detail = {
+        type: 'event' as const,
+        eventId: event.id,
+        eventTitle: language === 'ar' ? event.titleAr : event.titleEn,
+        eventDate: event.date.toISOString(),
+        eventTime: event.time
+      };
+
+      window.dispatchEvent(new CustomEvent('kokian-open-reservation', { detail }));
+
+      const reservationSection = document.getElementById('reservation');
+      if (reservationSection) {
+        reservationSection.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.location.href = '/#reservation';
+      }
+    }
   };
 
   const handleReservationSubmit = async (e: React.FormEvent) => {
@@ -151,7 +173,11 @@ const EventsSection = () => {
       // Filter events that are in the future or today
       const upcomingEvents = eventsData.filter(event => {
         const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to start of day
+
         const eventDate = new Date(event.date);
+        eventDate.setHours(0, 0, 0, 0); // Ensure event date is also compared at start of day
+
         return eventDate >= today;
       });
 
@@ -189,6 +215,7 @@ const EventsSection = () => {
   // Load data on component mount
   useEffect(() => {
     loadEvents();
+    setActiveIndex(0);
   }, [language]);
 
   // Memoize category icon logic for performance
@@ -263,85 +290,205 @@ const EventsSection = () => {
           </div>
         )}
 
-        {/* Events Grid */}
+        {/* Mobile Slider */}
         {!isLoading && !error && events.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-12">
-            {events.map((event, index) => {
-              const CategoryIcon = getCategoryIcon(event.category);
+          <div className="md:hidden mb-12">
+            {(() => {
+              const current = events[activeIndex % events.length];
+              const isFirst = activeIndex % events.length === 0;
               return (
-                <Card
-                  key={event.id}
-                  className={`group overflow-hidden hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-3 bg-white/95 backdrop-blur-md border-0 shadow-xl ${isVisible ? 'animate-scale-in' : 'opacity-0'
-                    }`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
-                    <img
-                      src={event.imageUrl || 'https://images.pexels.com/photos/1105666/pexels-photo-1105666.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop'}
-                      alt={language === 'ar' ? event.titleAr : event.titleEn}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                      loading="lazy"
-                    />
-                    <div className="absolute top-4 left-4 rtl:left-auto rtl:right-4">
-                      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-full flex items-center space-x-2 rtl:space-x-reverse shadow-lg backdrop-blur-sm">
-                        <CategoryIcon className="w-4 h-4" />
-                        <span className="text-sm font-semibold">
-                          {event.price} ر.س
-                        </span>
+                <div className="relative">
+                  <div className="flex justify-center">
+                    <div
+                      className="relative w-full max-w-sm overflow-hidden rounded-3xl h-[500px] shadow-2xl bg-black"
+                    >
+                      {/* Background Layer */}
+                      <div className="absolute inset-0">
+                        {current.imageUrl ? (
+                          <img
+                            src={current.imageUrl}
+                            alt={language === 'ar' ? current.titleAr : current.titleEn}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-gray-900 via-slate-900 to-black flex items-center justify-center">
+                            <div className="opacity-10 transform rotate-12">
+                              <Music className="w-32 h-32 text-white" />
+                            </div>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-85" />
+                      </div>
+
+                      {/* Badge for nearest */}
+                      {isFirst && (
+                        <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} z-20`}>
+                          <span className="bg-blue-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
+                            {language === 'ar' ? 'أقرب فعالية' : 'Nearest Event'}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      <div className="absolute inset-0 p-6 flex flex-col justify-end z-10">
+                        <div className={`absolute top-6 ${isRTL ? 'right-6' : 'left-6'}`}>
+                          <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl px-4 py-2 text-center shadow-lg">
+                            <span className="block text-xl font-bold font-english leading-none">
+                              {new Date(current.date).getDate()}
+                            </span>
+                            <span className="block text-xs uppercase tracking-wider opacity-80 font-english mt-1">
+                              {new Date(current.date).toLocaleDateString('en-US', { month: 'short' })}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className={`text-white space-y-3 ${isRTL ? 'text-right' : 'text-left'}`}>
+                          <h3 className={`text-2xl font-bold leading-tight drop-shadow-lg ${isRTL ? 'font-arabic' : 'font-english'}`}>
+                            {language === 'ar' ? current.titleAr : current.titleEn}
+                          </h3>
+
+                          <p className={`text-gray-300 text-sm leading-relaxed line-clamp-3 ${isRTL ? 'font-arabic' : 'font-english'}`}>
+                            {language === 'ar' ? current.descriptionAr : current.descriptionEn}
+                          </p>
+
+                          <div className={`flex items-center space-x-4 rtl:space-x-reverse text-sm text-gray-200 py-2 border-t border-white/10 mt-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <div className="flex items-center">
+                              <Clock className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-blue-400" />
+                              <span className="font-english">{current.time}</span>
+                            </div>
+                            <div className="flex items-center">
+                              <Users className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-blue-400" />
+                              <span className={isRTL ? 'font-arabic' : 'font-english'}>
+                                {current.capacity}
+                              </span>
+                            </div>
+                          </div>
+
+                          <Button
+                            onClick={() => handleBookNowClick(current)}
+                            className={`w-full bg-white text-black hover:bg-blue-50 transition-colors rounded-xl py-4 font-bold text-lg shadow-lg ${isRTL ? 'font-arabic' : 'font-english'}`}
+                          >
+                            {language === 'ar' ? 'حجز الآن' : 'Book Now'}
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
 
-                  <CardContent className="p-5 md:p-6">
-                    <h3 className={`text-lg md:text-xl font-bold text-black mb-3 group-hover:text-blue-700 transition-colors duration-300 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
-                      }`}>
-                      {language === 'ar' ? event.titleAr : event.titleEn}
-                    </h3>
+                  {events.length > 1 && (
+                    <>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="absolute -left-3 top-1/2 -translate-y-1/2 rounded-full shadow-lg"
+                        onClick={() => setActiveIndex((prev) => (prev - 1 + events.length) % events.length)}
+                        aria-label={language === 'ar' ? 'السابق' : 'Previous'}
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 rounded-full shadow-lg"
+                        onClick={() => setActiveIndex((prev) => (prev + 1) % events.length)}
+                        aria-label={language === 'ar' ? 'التالي' : 'Next'}
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+            {events.length > 1 && (
+              <p className={`mt-4 text-center text-sm text-gray-300 ${isRTL ? 'font-arabic' : 'font-english'}`}>
+                {language === 'ar' ? 'هناك فعاليات أخرى، اسحب لاستعراضها' : 'More events available, swipe to browse'}
+              </p>
+            )}
+          </div>
+        )}
 
-                    <p className={`text-gray-600 text-sm md:text-base mb-4 leading-relaxed line-clamp-2 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
-                      }`}>
-                      {language === 'ar' ? event.descriptionAr : event.descriptionEn}
-                    </p>
-
-                    <div className="space-y-2 md:space-y-3 mb-6">
-                      <div className={`flex items-center text-sm text-gray-700 ${isRTL ? 'flex-row-reverse' : ''
-                        }`}>
-                        <Calendar className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-blue-600" />
-                        <span className={isRTL ? 'font-arabic' : 'font-english'}>
-                          {formatDate(event.date)}
-                        </span>
+        {/* Events Grid - Desktop */}
+        {!isLoading && !error && events.length > 0 && (
+          <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-12">
+            {events.map((event, index) => {
+              return (
+                <div
+                  key={event.id}
+                  className={`relative group overflow-hidden rounded-3xl h-[500px] shadow-2xl transition-all duration-500 hover:shadow-blue-900/20 ${isVisible ? 'animate-scale-in' : 'opacity-0'
+                    }`}
+                  style={{ animationDelay: `${index * 0.15}s` }}
+                >
+                  {/* Background Layer (Image or Gradient) */}
+                  <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+                    {event.imageUrl ? (
+                      <img
+                        src={event.imageUrl}
+                        alt={language === 'ar' ? event.titleAr : event.titleEn}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-900 via-slate-900 to-black flex items-center justify-center">
+                        <div className="opacity-10 transform rotate-12">
+                          <Music className="w-40 h-40 text-white" />
+                        </div>
                       </div>
+                    )}
+                    {/* Dark Gradient Overlay for Text Readability - Always present but stronger at bottom */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
+                  </div>
 
-                      <div className={`flex items-center text-sm text-gray-700 ${isRTL ? 'flex-row-reverse' : ''
-                        }`}>
-                        <Clock className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-blue-600" />
-                        <span className={isRTL ? 'font-arabic' : 'font-english'}>
-                          {event.time}
+                  {/* Content Layer - Glassmorphism */}
+                  <div className="absolute bottom-0 inset-x-0 p-6 flex flex-col justify-end h-full z-10">
+
+                    {/* Date Badge - Floating Top */}
+                    <div className={`absolute top-6 ${isRTL ? 'right-6' : 'left-6'}`}>
+                      <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl px-4 py-2 text-center shadow-lg">
+                        <span className="block text-xl font-bold font-english leading-none">
+                          {new Date(event.date).getDate()}
                         </span>
-                      </div>
-
-                      <div className={`flex items-center text-sm text-gray-700 ${isRTL ? 'flex-row-reverse' : ''
-                        }`}>
-                        <Users className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-blue-600" />
-                        <span className={isRTL ? 'font-arabic' : 'font-english'}>
-                          {language === 'ar'
-                            ? `${event.capacity} مقعد متاح`
-                            : `${event.capacity} seats available`
-                          }
+                        <span className="block text-xs uppercase tracking-wider opacity-80 font-english mt-1">
+                          {new Date(event.date).toLocaleDateString('en-US', { month: 'short' })}
                         </span>
                       </div>
                     </div>
 
-                    <Button
-                      onClick={() => openReservationModal(event)}
-                      className={`w-full bg-gradient-to-r from-black to-gray-800 hover:from-gray-800 hover:to-black text-white transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl rounded-full ${isRTL ? 'font-arabic' : 'font-english'
-                        }`}
-                    >
-                      {language === 'ar' ? 'احجز مقعدك' : 'Reserve Your Seat'}
-                    </Button>
-                  </CardContent>
-                </Card>
+                    <div className={`transform transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white space-y-3 ${isRTL ? 'text-right' : 'text-left'}`}>
+
+                      <h3 className={`text-2xl md:text-3xl font-bold leading-tight drop-shadow-lg ${isRTL ? 'font-arabic' : 'font-english'}`}>
+                        {language === 'ar' ? event.titleAr : event.titleEn}
+                      </h3>
+
+                      <p className={`text-gray-300 text-sm md:text-base line-clamp-2 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 ${isRTL ? 'font-arabic' : 'font-english'}`}>
+                        {language === 'ar' ? event.descriptionAr : event.descriptionEn}
+                      </p>
+
+                      {/* Details Line */}
+                      <div className={`flex items-center space-x-4 rtl:space-x-reverse text-sm text-gray-200 py-2 border-t border-white/10 mt-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <div className="flex items-center">
+                          <Clock className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-blue-400" />
+                          <span className="font-english">{event.time}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Users className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 text-blue-400" />
+                          <span className={isRTL ? 'font-arabic' : 'font-english'}>
+                            {event.capacity}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <Button
+                        onClick={() => handleBookNowClick(event)}
+                        className={`w-full bg-white text-black hover:bg-blue-50 transition-colors rounded-xl py-6 font-bold text-lg shadow-lg mt-4 ${isRTL ? 'font-arabic' : 'font-english'}`}
+                      >
+                        {language === 'ar' ? 'حجز الآن' : 'Book Now'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>

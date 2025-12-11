@@ -34,9 +34,7 @@ import {
   type WorkingHour as FirestoreWorkingHour
 } from '@/lib/firestore';
 
-interface ContactInfo extends Omit<FirestoreContactInfo, 'id' | 'updatedAt'> {
-  // All properties inherited from FirestoreContactInfo except id and updatedAt
-}
+interface ContactInfo extends Omit<FirestoreContactInfo, 'id' | 'updatedAt'> {}
 
 interface WorkingHour extends Omit<FirestoreWorkingHour, 'id' | 'updatedAt'> {
   // All properties inherited from FirestoreWorkingHour except id and updatedAt
@@ -69,7 +67,22 @@ const ContactManagementPage = () => {
     whatsapps: [''],
     emails: [''],
     addressEn: '',
-    addressAr: ''
+    addressAr: '',
+    contactIconLinks: {
+      phone: '',
+      whatsapp: '',
+      email: '',
+      address: ''
+    },
+    sidebarWhatsappLink: '',
+    footerLinks: {
+      phone: '',
+      location: '',
+      instagram: '',
+      snapchat: '',
+      whatsapp: ''
+    },
+    addressLink: ''
   });
   
   const [workingHoursData, setWorkingHoursData] = useState<WorkingHour[]>([
@@ -98,7 +111,22 @@ const ContactManagementPage = () => {
           whatsapps: contactInfo.whatsapps.length > 0 ? contactInfo.whatsapps : [''],
           emails: contactInfo.emails.length > 0 ? contactInfo.emails : [''],
           addressEn: contactInfo.addressEn,
-          addressAr: contactInfo.addressAr
+          addressAr: contactInfo.addressAr,
+          contactIconLinks: {
+            phone: contactInfo.contactIconLinks?.phone ?? '',
+            whatsapp: contactInfo.contactIconLinks?.whatsapp ?? '',
+            email: contactInfo.contactIconLinks?.email ?? '',
+            address: contactInfo.contactIconLinks?.address ?? ''
+          },
+          sidebarWhatsappLink: contactInfo.sidebarWhatsappLink ?? '',
+          footerLinks: {
+            phone: contactInfo.footerLinks?.phone ?? '',
+            location: contactInfo.footerLinks?.location ?? '',
+            instagram: contactInfo.footerLinks?.instagram ?? '',
+            snapchat: contactInfo.footerLinks?.snapchat ?? '',
+            whatsapp: contactInfo.footerLinks?.whatsapp ?? ''
+          },
+          addressLink: contactInfo.addressLink ?? ''
         });
       }
 
@@ -147,7 +175,22 @@ const ContactManagementPage = () => {
         whatsapps: contactData.whatsapps.filter(whatsapp => whatsapp.trim()),
         emails: contactData.emails.filter(email => email.trim()),
         addressEn: contactData.addressEn.trim(),
-        addressAr: contactData.addressAr.trim()
+        addressAr: contactData.addressAr.trim(),
+        contactIconLinks: {
+          phone: contactData.contactIconLinks?.phone?.trim() || '',
+          whatsapp: contactData.contactIconLinks?.whatsapp?.trim() || '',
+          email: contactData.contactIconLinks?.email?.trim() || '',
+          address: contactData.contactIconLinks?.address?.trim() || ''
+        },
+        sidebarWhatsappLink: contactData.sidebarWhatsappLink?.trim() || '',
+        footerLinks: {
+          phone: contactData.footerLinks?.phone?.trim() || '',
+          location: contactData.footerLinks?.location?.trim() || '',
+          instagram: contactData.footerLinks?.instagram?.trim() || '',
+          snapchat: contactData.footerLinks?.snapchat?.trim() || '',
+          whatsapp: contactData.footerLinks?.whatsapp?.trim() || ''
+        },
+        addressLink: contactData.addressLink?.trim() || ''
       };
 
       // Update contact info
@@ -325,7 +368,7 @@ const ContactManagementPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Contact Information */}
-          <Card className={showContactSection ? '' : 'opacity-50'}>
+          <Card className={`shadow-xl border border-gray-200/80 rounded-2xl ${showContactSection ? '' : 'opacity-50'}`}>
             <CardHeader>
               <CardTitle className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse font-arabic' : 'font-english'}`}>
                 <div className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
@@ -349,7 +392,7 @@ const ContactManagementPage = () => {
                 </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent className={`space-y-6 ${showContactSection ? '' : 'hidden'}`}>
+            <CardContent className={`space-y-8 ${showContactSection ? '' : 'hidden'}`}>
               {/* Phone Numbers */}
               <div className={`space-y-3 ${fieldVisibility.phones ? '' : 'opacity-50'}`}>
                 <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
@@ -564,23 +607,156 @@ const ContactManagementPage = () => {
                   </Button>
                 </div>
                 {fieldVisibility.address && (
-                  <div className="space-y-2">
-                    <Input
-                      value={contactData.addressEn}
-                      onChange={(e) => setContactData(prev => ({ ...prev, addressEn: e.target.value }))}
-                      className="text-left font-english"
-                      placeholder="123 Luxury Street, Downtown"
-                      disabled={isSubmitting}
-                    />
-                    <Input
-                      value={contactData.addressAr}
-                      onChange={(e) => setContactData(prev => ({ ...prev, addressAr: e.target.value }))}
-                      className="text-right font-arabic"
-                      placeholder="123 شارع الفخامة، وسط المدينة"
-                      disabled={isSubmitting}
-                    />
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Input
+                        value={contactData.addressEn}
+                        onChange={(e) => setContactData(prev => ({ ...prev, addressEn: e.target.value }))}
+                        className="text-left font-english"
+                        placeholder="123 Luxury Street, Downtown"
+                        disabled={isSubmitting}
+                      />
+                      <Input
+                        value={contactData.addressAr}
+                        onChange={(e) => setContactData(prev => ({ ...prev, addressAr: e.target.value }))}
+                        className="text-right font-arabic"
+                        placeholder="123 شارع الفخامة، وسط المدينة"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className={`text-sm font-semibold ${isRTL ? 'text-right' : 'text-left'}`}>
+                        {language === 'ar' ? 'رابط العنوان (خريطة / موقع)' : 'Address Link (Map / Location)'}
+                      </Label>
+                      <Input
+                        value={contactData.addressLink}
+                        onChange={(e) => setContactData(prev => ({ ...prev, addressLink: e.target.value }))}
+                        className={isRTL ? 'text-right font-arabic' : 'text-left font-english'}
+                        placeholder={language === 'ar' ? 'ضع رابط الخريطة هنا' : 'Paste map/location link'}
+                        disabled={isSubmitting}
+                      />
+                    </div>
                   </div>
                 )}
+              </div>
+
+              {/* Contact Icon Links */}
+              <div className="space-y-3 p-4 bg-gray-50/80 border border-gray-200 rounded-xl">
+                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <Label className="font-semibold">
+                      {language === 'ar' ? 'روابط الأيقونات (الهيدر/التواصل)' : 'Icon Links (Header / Contact)'}
+                    </Label>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Input
+                    value={contactData.contactIconLinks?.phone ?? ''}
+                    onChange={(e) => setContactData(prev => ({
+                      ...prev,
+                      contactIconLinks: { ...prev.contactIconLinks, phone: e.target.value }
+                    }))}
+                    placeholder={language === 'ar' ? 'رابط مخصص للهاتف (tel: ... أو صفحة)' : 'Custom phone link (tel:... or page)'}
+                    disabled={isSubmitting}
+                  />
+                  <Input
+                    value={contactData.contactIconLinks?.whatsapp ?? ''}
+                    onChange={(e) => setContactData(prev => ({
+                      ...prev,
+                      contactIconLinks: { ...prev.contactIconLinks, whatsapp: e.target.value }
+                    }))}
+                    placeholder={language === 'ar' ? 'رابط مخصص للواتساب (https://wa.me/...)' : 'Custom WhatsApp link (https://wa.me/...)'}
+                    disabled={isSubmitting}
+                  />
+                  <Input
+                    value={contactData.contactIconLinks?.email ?? ''}
+                    onChange={(e) => setContactData(prev => ({
+                      ...prev,
+                      contactIconLinks: { ...prev.contactIconLinks, email: e.target.value }
+                    }))}
+                    placeholder={language === 'ar' ? 'رابط مخصص للإيميل (mailto:...)' : 'Custom email link (mailto:...)'}
+                    disabled={isSubmitting}
+                  />
+                  <Input
+                    value={contactData.contactIconLinks?.address ?? ''}
+                    onChange={(e) => setContactData(prev => ({
+                      ...prev,
+                      contactIconLinks: { ...prev.contactIconLinks, address: e.target.value }
+                    }))}
+                    placeholder={language === 'ar' ? 'رابط مخصص للعناوين (خريطة)' : 'Custom address link (map)'}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Sidebar WhatsApp Link (Mobile Menu) */}
+              <div className="space-y-2 p-4 bg-gray-50/80 border border-gray-200 rounded-xl">
+                <Label className={`text-sm font-semibold ${isRTL ? 'text-right' : 'text-left'}`}>
+                  {language === 'ar' ? 'رابط واتساب في قائمة الهاتف (Sidebar)' : 'Sidebar WhatsApp Link (Mobile Menu)'}
+                </Label>
+                <Input
+                  value={contactData.sidebarWhatsappLink}
+                  onChange={(e) => setContactData(prev => ({ ...prev, sidebarWhatsappLink: e.target.value }))}
+                  className={isRTL ? 'text-right font-arabic' : 'text-left font-english'}
+                  placeholder={language === 'ar' ? 'مثال: https://wa.me/966...' : 'e.g., https://wa.me/966...'}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Footer Links */}
+              <div className="space-y-3 p-4 bg-gray-50/80 border border-gray-200 rounded-xl">
+                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <Label className="font-semibold">
+                    {language === 'ar' ? 'روابط الفوتر' : 'Footer Links'}
+                  </Label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Input
+                    value={contactData.footerLinks?.phone ?? ''}
+                    onChange={(e) => setContactData(prev => ({
+                      ...prev,
+                      footerLinks: { ...prev.footerLinks, phone: e.target.value }
+                    }))}
+                    placeholder={language === 'ar' ? 'رابط الهاتف في الفوتر' : 'Footer phone link'}
+                    disabled={isSubmitting}
+                  />
+                  <Input
+                    value={contactData.footerLinks?.location ?? ''}
+                    onChange={(e) => setContactData(prev => ({
+                      ...prev,
+                      footerLinks: { ...prev.footerLinks, location: e.target.value }
+                    }))}
+                    placeholder={language === 'ar' ? 'رابط الموقع/الخريطة في الفوتر' : 'Footer location link'}
+                    disabled={isSubmitting}
+                  />
+                  <Input
+                    value={contactData.footerLinks?.instagram ?? ''}
+                    onChange={(e) => setContactData(prev => ({
+                      ...prev,
+                      footerLinks: { ...prev.footerLinks, instagram: e.target.value }
+                    }))}
+                    placeholder={language === 'ar' ? 'رابط إنستغرام في الفوتر' : 'Footer Instagram link'}
+                    disabled={isSubmitting}
+                  />
+                  <Input
+                    value={contactData.footerLinks?.snapchat ?? ''}
+                    onChange={(e) => setContactData(prev => ({
+                      ...prev,
+                      footerLinks: { ...prev.footerLinks, snapchat: e.target.value }
+                    }))}
+                    placeholder={language === 'ar' ? 'رابط سناب شات في الفوتر' : 'Footer Snapchat link'}
+                    disabled={isSubmitting}
+                  />
+                  <Input
+                    value={contactData.footerLinks?.whatsapp ?? ''}
+                    onChange={(e) => setContactData(prev => ({
+                      ...prev,
+                      footerLinks: { ...prev.footerLinks, whatsapp: e.target.value }
+                    }))}
+                    placeholder={language === 'ar' ? 'رابط واتساب في الفوتر' : 'Footer WhatsApp link'}
+                    disabled={isSubmitting}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

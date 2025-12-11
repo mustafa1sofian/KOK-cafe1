@@ -1,29 +1,44 @@
 'use client';
 
 import * as React from 'react';
-import * as SwitchPrimitives from '@radix-ui/react-switch';
 
-import { cn } from '@/lib/utils';
+interface SwitchProps {
+  id?: string;
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  className?: string;
+}
 
-const Switch = React.forwardRef<
-  React.ElementRef<typeof SwitchPrimitives.Root>,
-  React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
->(({ className, ...props }, ref) => (
-  <SwitchPrimitives.Root
-    className={cn(
-      'peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input',
-      className
-    )}
-    {...props}
-    ref={ref}
-  >
-    <SwitchPrimitives.Thumb
-      className={cn(
-        'pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0'
-      )}
-    />
-  </SwitchPrimitives.Root>
-));
-Switch.displayName = SwitchPrimitives.Root.displayName;
+const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
+  ({ id, checked, onCheckedChange, className = '' }, ref) => {
+    return (
+      <label className="relative inline-block w-14 h-8 cursor-pointer">
+        <input
+          ref={ref}
+          id={id}
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onCheckedChange?.(e.target.checked)}
+          className="opacity-0 w-0 h-0 peer"
+        />
+        <span
+          className={`
+            absolute inset-0 rounded-full border transition-all duration-300
+            peer-checked:bg-blue-600 peer-checked:border-blue-600
+            peer-focus:ring-2 peer-focus:ring-blue-300
+            bg-gray-200 border-gray-300
+            before:content-[''] before:absolute before:top-1 before:right-1 
+            before:w-6 before:h-6 before:rounded-full before:bg-white before:shadow-sm
+            before:transition-transform before:duration-300
+            peer-checked:before:-translate-x-6
+            ${className}
+          `}
+        />
+      </label>
+    );
+  }
+);
+
+Switch.displayName = 'Switch';
 
 export { Switch };

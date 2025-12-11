@@ -6,29 +6,35 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
+import {
   ArrowLeft,
   Save,
   Upload,
-  Image,
+  Image as ImageIcon,
   X,
   Trash2,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Type,
+  Images
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { checkAdminAuth } from '@/lib/auth';
 
-// Import Firestore functions
+// Import Firestore and ImgBB functions
 import {
   getSiteSettings,
   updateSiteSettings,
-  uploadImage,
-  deleteImage,
   type SiteSettings as FirestoreSiteSettings
 } from '@/lib/firestore';
+
+import {
+  uploadImageToImgBB,
+  validateImageFile
+} from '@/lib/imgbb';
 
 interface SiteSettings extends Omit<FirestoreSiteSettings, 'id' | 'updatedAt'> {
   // All properties inherited from FirestoreSiteSettings except id and updatedAt
@@ -37,24 +43,33 @@ interface SiteSettings extends Omit<FirestoreSiteSettings, 'id' | 'updatedAt'> {
 const SiteSettingsPage = () => {
   const { language, isRTL } = useLanguage();
   const router = useRouter();
-  
+
   // Loading and error states
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  
+
   // Form data
   const [formData, setFormData] = useState<SiteSettings>({
     heroBackgroundImage: '',
-    aboutSectionImage: ''
+    aboutSectionImage: '',
+    aboutTitleEn: '',
+    aboutTitleAr: '',
+    aboutContentEn: '',
+    aboutContentAr: '',
+    heroSliderImages: ['', '', ''],
+    heroTitleEn: '',
+    heroTitleAr: '',
+    heroSubtitleEn: '',
+    heroSubtitleAr: ''
   });
-  
-  // File upload states
-  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
-  const [aboutImageFile, setAboutImageFile] = useState<File | null>(null);
-  const [heroImagePreview, setHeroImagePreview] = useState<string>('');
-  const [aboutImagePreview, setAboutImagePreview] = useState<string>('');
+
+  // File upload states for slider
+  const [sliderFiles, setSliderFiles] = useState<(File | null)[]>([null, null, null]);
+  const [sliderPreviews, setSliderPreviews] = useState<string[]>(['', '', '']);
+  const [aboutPreview, setAboutPreview] = useState<string>('');
+  const [aboutFile, setAboutFile] = useState<File | null>(null);
 
   // Check authentication
   useEffect(() => {
@@ -73,10 +88,19 @@ const SiteSettingsPage = () => {
       if (settings) {
         setFormData({
           heroBackgroundImage: settings.heroBackgroundImage || '',
-          aboutSectionImage: settings.aboutSectionImage || ''
+          aboutSectionImage: settings.aboutSectionImage || '',
+          aboutTitleEn: settings.aboutTitleEn || '',
+          aboutTitleAr: settings.aboutTitleAr || '',
+          aboutContentEn: settings.aboutContentEn || '',
+          aboutContentAr: settings.aboutContentAr || '',
+          heroSliderImages: settings.heroSliderImages || ['', '', ''],
+          heroTitleEn: settings.heroTitleEn || '',
+          heroTitleAr: settings.heroTitleAr || '',
+          heroSubtitleEn: settings.heroSubtitleEn || '',
+          heroSubtitleAr: settings.heroSubtitleAr || ''
         });
-        setHeroImagePreview(settings.heroBackgroundImage || '');
-        setAboutImagePreview(settings.aboutSectionImage || '');
+        setSliderPreviews(settings.heroSliderImages || ['', '', '']);
+        setAboutPreview(settings.aboutSectionImage || '');
       }
     } catch (err) {
       console.error('Error loading site settings:', err);
@@ -86,65 +110,114 @@ const SiteSettingsPage = () => {
     }
   };
 
-  // Load data on component mount
+  // Handle about image upload
+  const handleAboutImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        alert(validation.error);
+        return;
+      }
+
+      setIsSubmitting(true);
+      const imageUrl = await uploadImageToImgBB(file);
+
+      setFormData({ ...formData, aboutSectionImage: imageUrl });
+      setAboutPreview(imageUrl);
+      setAboutFile(file);
+    } catch (error) {
+      console.error('Error uploading about image:', error);
+      alert(language === 'ar' ? 'فشل رفع الصورة' : 'Failed to upload image');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const removeAboutImage = () => {
+    setFormData({ ...formData, aboutSectionImage: '' });
+    setAboutPreview('');
+    setAboutFile(null);
+  };
+
   useEffect(() => {
     loadSiteSettings();
   }, []);
 
+  // Handle slider image upload
+  const handleSliderImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        alert(validation.error);
+        return;
+      }
+
+      setIsSubmitting(true);
+      const imageUrl = await uploadImageToImgBB(file);
+
+      const newSliderImages = [...formData.heroSliderImages!];
+      newSliderImages[index] = imageUrl;
+
+      const newPreviews = [...sliderPreviews];
+      newPreviews[index] = imageUrl;
+
+      setFormData({ ...formData, heroSliderImages: newSliderImages });
+      setSliderPreviews(newPreviews);
+
+      const newFiles = [...sliderFiles];
+      newFiles[index] = file;
+      setSliderFiles(newFiles);
+    } catch (error) {
+      console.error('Error uploading slider image:', error);
+      alert(language === 'ar' ? 'فشل رفع الصورة' : 'Failed to upload image');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Remove slider image
+  const removeSliderImage = (index: number) => {
+    const newSliderImages = [...formData.heroSliderImages!];
+    newSliderImages[index] = '';
+
+    const newPreviews = [...sliderPreviews];
+    newPreviews[index] = '';
+
+    const newFiles = [...sliderFiles];
+    newFiles[index] = null;
+
+    setFormData({ ...formData, heroSliderImages: newSliderImages });
+    setSliderPreviews(newPreviews);
+    setSliderFiles(newFiles);
+  };
+
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-      let heroBackgroundImage = formData.heroBackgroundImage;
-      let aboutSectionImage = formData.aboutSectionImage;
-
-      // Upload hero background image if a new file is selected
-      if (heroImageFile) {
-        const imagePath = `site-settings/hero-${Date.now()}-${heroImageFile.name}`;
-        heroBackgroundImage = await uploadImage(heroImageFile, imagePath);
-        
-        // Delete old image if it exists
-        if (formData.heroBackgroundImage) {
-          try {
-            await deleteImage(formData.heroBackgroundImage);
-          } catch (error) {
-            console.warn('Error deleting old hero image:', error);
-          }
-        }
-      }
-
-      // Upload about section image if a new file is selected
-      if (aboutImageFile) {
-        const imagePath = `site-settings/about-${Date.now()}-${aboutImageFile.name}`;
-        aboutSectionImage = await uploadImage(aboutImageFile, imagePath);
-        
-        // Delete old image if it exists
-        if (formData.aboutSectionImage) {
-          try {
-            await deleteImage(formData.aboutSectionImage);
-          } catch (error) {
-            console.warn('Error deleting old about image:', error);
-          }
-        }
-      }
-
       const settingsData = {
-        heroBackgroundImage,
-        aboutSectionImage
+        heroBackgroundImage: formData.heroBackgroundImage,
+        aboutSectionImage: formData.aboutSectionImage,
+        aboutTitleEn: formData.aboutTitleEn,
+        aboutTitleAr: formData.aboutTitleAr,
+        aboutContentEn: formData.aboutContentEn,
+        aboutContentAr: formData.aboutContentAr,
+        heroSliderImages: formData.heroSliderImages,
+        heroTitleEn: formData.heroTitleEn,
+        heroTitleAr: formData.heroTitleAr,
+        heroSubtitleEn: formData.heroSubtitleEn,
+        heroSubtitleAr: formData.heroSubtitleAr
       };
 
       await updateSiteSettings(settingsData);
 
-      // Update form data with new URLs
-      setFormData(settingsData);
-      setHeroImagePreview(heroBackgroundImage);
-      setAboutImagePreview(aboutSectionImage);
-      
-      // Clear file inputs
-      setHeroImageFile(null);
-      setAboutImageFile(null);
-
       setSubmitStatus('success');
-      
+
       setTimeout(() => {
         setSubmitStatus('idle');
       }, 3000);
@@ -156,130 +229,12 @@ const SiteSettingsPage = () => {
     }
   };
 
-  const handleHeroImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setHeroImageFile(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setHeroImagePreview(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleAboutImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAboutImageFile(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setAboutImagePreview(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const removeHeroImage = () => {
-    setHeroImageFile(null);
-    setHeroImagePreview(formData.heroBackgroundImage);
-  };
-
-  const removeAboutImage = () => {
-    setAboutImageFile(null);
-    setAboutImagePreview(formData.aboutSectionImage);
-  };
-
-  const deleteHeroImage = async () => {
-    if (confirm(language === 'ar' ? 'هل أنت متأكد من حذف صورة الخلفية؟' : 'Are you sure you want to delete the background image?')) {
-      setIsSubmitting(true);
-      try {
-        // Delete image from storage if it exists
-        if (formData.heroBackgroundImage) {
-          try {
-            await deleteImage(formData.heroBackgroundImage);
-          } catch (error) {
-            console.warn('Error deleting hero image:', error);
-          }
-        }
-
-        // Update settings to remove the image
-        const settingsData = {
-          heroBackgroundImage: '',
-          aboutSectionImage: formData.aboutSectionImage
-        };
-
-        await updateSiteSettings(settingsData);
-
-        // Update form data
-        setFormData(settingsData);
-        setHeroImagePreview('');
-        setHeroImageFile(null);
-
-        setSubmitStatus('success');
-        
-        setTimeout(() => {
-          setSubmitStatus('idle');
-        }, 3000);
-      } catch (error) {
-        console.error('Error deleting hero image:', error);
-        setSubmitStatus('error');
-      } finally {
-        setIsSubmitting(false);
-      }
-    }
-  };
-
-  const deleteAboutImage = async () => {
-    if (confirm(language === 'ar' ? 'هل أنت متأكد من حذف صورة قسم "عنا"؟' : 'Are you sure you want to delete the about section image?')) {
-      setIsSubmitting(true);
-      try {
-        // Delete image from storage if it exists
-        if (formData.aboutSectionImage) {
-          try {
-            await deleteImage(formData.aboutSectionImage);
-          } catch (error) {
-            console.warn('Error deleting about image:', error);
-          }
-        }
-
-        // Update settings to remove the image
-        const settingsData = {
-          heroBackgroundImage: formData.heroBackgroundImage,
-          aboutSectionImage: ''
-        };
-
-        await updateSiteSettings(settingsData);
-
-        // Update form data
-        setFormData(settingsData);
-        setAboutImagePreview('');
-        setAboutImageFile(null);
-
-        setSubmitStatus('success');
-        
-        setTimeout(() => {
-          setSubmitStatus('idle');
-        }, 3000);
-      } catch (error) {
-        console.error('Error deleting about image:', error);
-        setSubmitStatus('error');
-      } finally {
-        setIsSubmitting(false);
-      }
-    }
-  };
-
   // Loading state
   if (isLoading) {
     return (
-      <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'} flex items-center justify-center`}>
+      <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 ${isRTL ? 'rtl' : 'ltr'} flex items-center justify-center`}>
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-600" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
           <p className={`text-gray-600 ${isRTL ? 'font-arabic' : 'font-english'}`}>
             {language === 'ar' ? 'جاري تحميل إعدادات الموقع...' : 'Loading site settings...'}
           </p>
@@ -291,7 +246,7 @@ const SiteSettingsPage = () => {
   // Error state
   if (error) {
     return (
-      <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'} flex items-center justify-center`}>
+      <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 ${isRTL ? 'rtl' : 'ltr'} flex items-center justify-center`}>
         <div className="text-center">
           <AlertCircle className="w-8 h-8 mx-auto mb-4 text-red-600" />
           <p className={`text-red-600 mb-4 ${isRTL ? 'font-arabic' : 'font-english'}`}>
@@ -306,277 +261,190 @@ const SiteSettingsPage = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`}>
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
-        <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-          <div className={`flex items-center space-x-4 rtl:space-x-reverse ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <Button
-              onClick={() => router.push('/admin')}
-              variant="ghost"
-              size="sm"
-              className="text-gray-600 hover:text-gray-800"
-            >
-              <ArrowLeft className={`w-5 h-5 ${isRTL ? 'rotate-180' : ''}`} />
-            </Button>
-            <div>
-              <h1 className={`text-2xl font-bold text-gray-800 ${isRTL ? 'font-arabic' : 'font-english'}`}>
-                {language === 'ar' ? 'إعدادات الموقع' : 'Site Settings'}
-              </h1>
-              <p className={`text-gray-600 mt-1 ${isRTL ? 'font-arabic' : 'font-english'}`}>
-                {language === 'ar' ? 'إدارة صور الخلفية ومظهر الموقع' : 'Manage background images and site appearance'}
-              </p>
-            </div>
-          </div>
-          
-          <Button
-            onClick={handleSave}
-            className="bg-green-600 hover:bg-green-700 text-white"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2" />
-            )}
-            {language === 'ar' ? 'حفظ التغييرات' : 'Save Changes'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6 max-w-4xl mx-auto">
-        {/* Success Message */}
-        {submitStatus === 'success' && (
-          <div className={`mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-3 rtl:space-x-reverse ${
-            isRTL ? 'flex-row-reverse' : ''
-          }`}>
-            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-            <p className={`text-green-800 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-              {language === 'ar' 
-                ? 'تم حفظ إعدادات الموقع بنجاح!' 
-                : 'Site settings saved successfully!'
-              }
-            </p>
-          </div>
-        )}
-        
-        {/* Error Message */}
-        {submitStatus === 'error' && (
-          <div className={`mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3 rtl:space-x-reverse ${
-            isRTL ? 'flex-row-reverse' : ''
-          }`}>
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-            <p className={`text-red-800 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-              {language === 'ar' 
-                ? 'حدث خطأ أثناء حفظ الإعدادات' 
-                : 'Error occurred while saving settings'
-              }
-            </p>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Hero Background Image */}
-          <Card>
-            <CardHeader>
-              <CardTitle className={`flex items-center ${isRTL ? 'flex-row-reverse font-arabic' : 'font-english'}`}>
-                <Image className="w-5 h-5 mr-2 rtl:mr-0 rtl:ml-2" />
-                {language === 'ar' ? 'صورة خلفية الصفحة الرئيسية' : 'Hero Background Image'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Current/Preview Image */}
-              {heroImagePreview && (
-                <div className="aspect-[16/9] w-full overflow-hidden rounded-lg border">
-                  <img
-                    src={heroImagePreview}
-                    alt="Hero Background Preview"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              
-              {/* Upload Section */}
-              <div className="space-y-3">
-                <Label className={isRTL ? 'text-right' : 'text-left'}>
-                  {language === 'ar' ? 'رفع صورة جديدة' : 'Upload New Image'}
-                </Label>
-                <div className="flex gap-2 flex-wrap">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleHeroImageUpload}
-                    className="hidden"
-                    id="hero-image-upload"
-                    disabled={isSubmitting}
-                  />
-                  <Label
-                    htmlFor="hero-image-upload"
-                    className="flex-1 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
-                      <Upload className="w-4 h-4" />
-                      <span>{language === 'ar' ? 'اختر صورة' : 'Choose Image'}</span>
-                    </div>
-                  </Label>
-                  {heroImageFile && (
-                    <Button
-                      onClick={removeHeroImage}
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 border-red-600"
-                      disabled={isSubmitting}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                  {heroImagePreview && (
-                    <Button
-                      onClick={deleteHeroImage}
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 border-red-600 hover:bg-red-50"
-                      disabled={isSubmitting}
-                    >
-                      <Trash2 className="w-4 h-4 mr-1 rtl:mr-0 rtl:ml-1" />
-                      {language === 'ar' ? 'حذف' : 'Delete'}
-                    </Button>
-                  )}
-                </div>
-                {heroImageFile && (
-                  <p className={`text-sm text-green-600 ${isRTL ? 'text-right font-arabic' : 'text-left font-english'}`}>
-                    {language === 'ar' ? 'تم اختيار صورة جديدة' : 'New image selected'}: {heroImageFile.name}
+    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 ${isRTL ? 'rtl' : 'ltr'}`}>
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <Card className="mb-8 border-none shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => router.push('/admin')}
+                  className="hover:bg-gray-100"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <div>
+                  <h1 className={`text-2xl md:text-3xl font-bold text-gray-900 ${isRTL ? 'font-arabic' : 'font-english'}`}>
+                    {language === 'ar' ? 'إعدادات الموقع' : 'Site Settings'}
+                  </h1>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {language === 'ar' ? 'إدارة صور وإعدادات الصفحة الرئيسية' : 'Manage homepage images and settings'}
                   </p>
-                )}
-              </div>
-              
-              <p className={`text-sm text-gray-500 ${isRTL ? 'text-right font-arabic' : 'text-left font-english'}`}>
-                {language === 'ar' 
-                  ? 'الحد الأقصى لحجم الملف: 5 ميجابايت. الأبعاد المفضلة: 1920x1080 بكسل'
-                  : 'Maximum file size: 5MB. Recommended dimensions: 1920x1080 pixels'
-                }
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* About Section Image */}
-          <Card>
-            <CardHeader>
-              <CardTitle className={`flex items-center ${isRTL ? 'flex-row-reverse font-arabic' : 'font-english'}`}>
-                <Image className="w-5 h-5 mr-2 rtl:mr-0 rtl:ml-2" />
-                {language === 'ar' ? 'صورة قسم "عنا"' : 'About Section Image'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Current/Preview Image */}
-              {aboutImagePreview && (
-                <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border">
-                  <img
-                    src={aboutImagePreview}
-                    alt="About Section Preview"
-                    className="w-full h-full object-cover"
-                  />
                 </div>
-              )}
-              
-              {/* Upload Section */}
-              <div className="space-y-3">
-                <Label className={isRTL ? 'text-right' : 'text-left'}>
-                  {language === 'ar' ? 'رفع صورة جديدة' : 'Upload New Image'}
-                </Label>
-                <div className="flex gap-2 flex-wrap">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAboutImageUpload}
-                    className="hidden"
-                    id="about-image-upload"
-                    disabled={isSubmitting}
-                  />
-                  <Label
-                    htmlFor="about-image-upload"
-                    className="flex-1 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
-                      <Upload className="w-4 h-4" />
-                      <span>{language === 'ar' ? 'اختر صورة' : 'Choose Image'}</span>
-                    </div>
-                  </Label>
-                  {aboutImageFile && (
-                    <Button
-                      onClick={removeAboutImage}
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 border-red-600"
-                      disabled={isSubmitting}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                  {aboutImagePreview && (
-                    <Button
-                      onClick={deleteAboutImage}
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 border-red-600 hover:bg-red-50"
-                      disabled={isSubmitting}
-                    >
-                      <Trash2 className="w-4 h-4 mr-1 rtl:mr-0 rtl:ml-1" />
-                      {language === 'ar' ? 'حذف' : 'Delete'}
-                    </Button>
-                  )}
-                </div>
-                {aboutImageFile && (
-                  <p className={`text-sm text-green-600 ${isRTL ? 'text-right font-arabic' : 'text-left font-english'}`}>
-                    {language === 'ar' ? 'تم اختيار صورة جديدة' : 'New image selected'}: {aboutImageFile.name}
-                  </p>
-                )}
               </div>
-              
-              <p className={`text-sm text-gray-500 ${isRTL ? 'text-right font-arabic' : 'text-left font-english'}`}>
-                {language === 'ar' 
-                  ? 'الحد الأقصى لحجم الملف: 5 ميجابايت. الأبعاد المفضلة: 800x600 بكسل'
-                  : 'Maximum file size: 5MB. Recommended dimensions: 800x600 pixels'
-                }
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Usage Instructions */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className={`${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-              {language === 'ar' ? 'تعليمات الاستخدام' : 'Usage Instructions'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={`space-y-3 text-sm text-gray-600 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-              <p>
-                <strong>{language === 'ar' ? 'صورة خلفية الصفحة الرئيسية:' : 'Hero Background Image:'}</strong>{' '}
-                {language === 'ar' 
-                  ? 'هذه الصورة تظهر في الخلفية في أعلى الصفحة الرئيسية خلف النص الترحيبي.'
-                  : 'This image appears as the background at the top of the homepage behind the welcome text.'
-                }
-              </p>
-              <p>
-                <strong>{language === 'ar' ? 'صورة قسم "عنا":' : 'About Section Image:'}</strong>{' '}
-                {language === 'ar' 
-                  ? 'هذه الصورة تظهر في قسم "عنا" في الصفحة الرئيسية بجانب النص التعريفي.'
-                  : 'This image appears in the About section on the homepage next to the descriptive text.'
-                }
-              </p>
-              <p>
-                <strong>{language === 'ar' ? 'نصائح:' : 'Tips:'}</strong>{' '}
-                {language === 'ar' 
-                  ? 'استخدم صور عالية الجودة وتأكد من أن الصور تتناسب مع هوية المطعم. يُفضل استخدام صور بصيغة JPG أو PNG.'
-                  : 'Use high-quality images and ensure they match the restaurant\'s identity. JPG or PNG formats are preferred.'
-                }
-              </p>
+              <Button
+                onClick={handleSave}
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                {language === 'ar' ? 'حفظ التغييرات' : 'Save Changes'}
+              </Button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Success/Error Messages */}
+        {submitStatus === 'success' && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <p className="text-green-800">
+              {language === 'ar' ? 'تم حفظ الإعدادات بنجاح!' : 'Settings saved successfully!'}
+            </p>
+          </div>
+        )}
+
+        {submitStatus === 'error' && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <p className="text-red-800">
+              {language === 'ar' ? 'حدث خطأ أثناء حفظ الإعدادات' : 'Error occurred while saving settings'}
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-8">
+          {/* Hero Slider Images Section */}
+          <Card className="border-none shadow-sm">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse font-arabic' : 'font-english'}`}>
+                <Images className="w-6 h-6 text-blue-600" />
+                {language === 'ar' ? 'سلايدر الصفحة الرئيسية (3 صور)' : 'Hero Slider (3 Images)'}
+              </CardTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                {language === 'ar'
+                  ? 'رفع 3 صور للسلايدر في أعلى الصفحة الرئيسية. سيتم التبديل بينها تلقائياً.'
+                  : 'Upload 3 images for the homepage slider. They will auto-rotate.'}
+              </p>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[0, 1, 2].map((index) => (
+                  <div key={index} className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      {language === 'ar' ? `صورة ${index + 1}` : `Image ${index + 1}`}
+                    </Label>
+
+                    {sliderPreviews[index] ? (
+                      <div className="relative aspect-[16/9] rounded-lg overflow-hidden border-2 border-gray-200">
+                        <img
+                          src={sliderPreviews[index]}
+                          alt={`Slider ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <Button
+                          size="icon"
+                          variant="destructive"
+                          className="absolute top-2 right-2 h-8 w-8"
+                          onClick={() => removeSliderImage(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="aspect-[16/9] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleSliderImageUpload(index, e)}
+                          className="hidden"
+                          id={`slider-${index}`}
+                          disabled={isSubmitting}
+                        />
+                        <Label htmlFor={`slider-${index}`} className="cursor-pointer flex flex-col items-center gap-2 p-4">
+                          <Upload className="w-8 h-8 text-gray-400" />
+                          <span className="text-sm text-gray-500">
+                            {language === 'ar' ? 'رفع صورة' : 'Upload Image'}
+                          </span>
+                        </Label>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      {language === 'ar' ? 'الحد الأقصى: 32MB' : 'Max: 32MB'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Hero Text Content Section */}
+          <Card className="border-none shadow-sm">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
+              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse font-arabic' : 'font-english'}`}>
+                <Type className="w-6 h-6 text-green-600" />
+                {language === 'ar' ? 'نصوص الصفحة الرئيسية' : 'Hero Section Text'}
+              </CardTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                {language === 'ar'
+                  ? 'تعديل العنوان والعنوان الفرعي الذي يظهر في أعلى الصفحة الرئيسية'
+                  : 'Edit the title and subtitle displayed on the homepage hero section'}
+              </p>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">English Title</Label>
+                  <Input
+                    value={formData.heroTitleEn || ''}
+                    onChange={(e) => setFormData({ ...formData, heroTitleEn: e.target.value })}
+                    placeholder="Welcome to Kokian"
+                    className="font-english"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">العنوان بالعربية</Label>
+                  <Input
+                    value={formData.heroTitleAr || ''}
+                    onChange={(e) => setFormData({ ...formData, heroTitleAr: e.target.value })}
+                    placeholder="مرحباً بكم في كوكيان"
+                    className="font-arabic text-right"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">English Subtitle</Label>
+                  <Textarea
+                    value={formData.heroSubtitleEn || ''}
+                    onChange={(e) => setFormData({ ...formData, heroSubtitleEn: e.target.value })}
+                    placeholder="Experience luxury dining..."
+                    className="font-english resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">العنوان الفرعي بالعربية</Label>
+                  <Textarea
+                    value={formData.heroSubtitleAr || ''}
+                    onChange={(e) => setFormData({ ...formData, heroSubtitleAr: e.target.value })}
+                    placeholder="استمتع بتجربة طعام فاخرة..."
+                    className="font-arabic text-right resize-none"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

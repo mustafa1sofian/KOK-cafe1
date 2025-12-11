@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,6 +68,10 @@ const FeaturedDishesPage = () => {
 
   // Data state
   const [featuredDishes, setFeaturedDishes] = useState<MenuItem[]>([]);
+  const featuredCount = featuredDishes.length;
+  const limit = 6;
+  const limitReached = featuredCount >= limit;
+  const counterLabel = `${featuredCount} / ${limit} ${language === 'ar' ? 'أطباق مميزة' : 'featured dishes'}`;
 
   // Check authentication
   useEffect(() => {
@@ -254,7 +258,7 @@ const FeaturedDishesPage = () => {
   return (
     <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Header */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
+      <div className="bg-white/80 backdrop-blur-md shadow-sm border-b px-6 py-4">
         <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
           <div className={`flex items-center space-x-4 rtl:space-x-reverse ${isRTL ? 'flex-row-reverse' : ''}`}>
             <Button
@@ -275,8 +279,15 @@ const FeaturedDishesPage = () => {
             </div>
           </div>
           
-          <div className={`text-sm text-gray-600 ${isRTL ? 'font-arabic' : 'font-english'}`}>
-            {featuredDishes.length} {language === 'ar' ? 'طبق مميز' : 'featured dishes'}
+          <div className={`text-sm ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
+            <div className={`px-3 py-2 rounded-lg border ${limitReached ? 'border-red-200 bg-red-50 text-red-700' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
+              {counterLabel}
+            </div>
+            {limitReached && (
+              <p className="mt-1 text-xs text-red-600">
+                {language === 'ar' ? 'تم بلوغ الحد الأقصى (٦). احذف طبقاً مميزاً لإضافة آخر.' : 'Limit reached (6). Remove a featured dish to add another.'}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -304,30 +315,34 @@ const FeaturedDishesPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredDishes.map((dish) => (
-              <Card key={dish.id} className="relative overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="absolute top-2 right-2 rtl:right-auto rtl:left-2 flex gap-1 z-10">
+            {featuredDishes.map((dish, index) => (
+              <Card
+                key={dish.id}
+                className="relative overflow-hidden bg-white/80 backdrop-blur-md border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300"
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <div className="absolute top-3 right-3 rtl:right-auto rtl:left-3 flex gap-2 z-10">
                   <Button
                     onClick={() => openDialog('edit', dish)}
                     size="sm"
                     variant="outline"
-                    className="w-8 h-8 p-0 bg-white/90 hover:bg-white text-blue-600 border-blue-600"
+                    className="w-9 h-9 p-0 bg-white/90 hover:bg-white text-blue-600 border-blue-200"
                     disabled={isSubmitting}
                   >
-                    <Edit className="w-3 h-3" />
+                    <Edit className="w-4 h-4" />
                   </Button>
                   <Button
                     onClick={() => handleToggleFeatured(dish)}
                     size="sm"
                     variant="outline"
-                    className="w-8 h-8 p-0 bg-white/90 hover:bg-white text-red-600 border-red-600"
+                    className="w-9 h-9 p-0 bg-white/90 hover:bg-white text-red-600 border-red-200"
                     disabled={isSubmitting}
                   >
-                    <Star className="w-3 h-3" />
+                    <Star className="w-4 h-4" />
                   </Button>
                 </div>
                 
-                <div className="aspect-video bg-gray-200 flex items-center justify-center overflow-hidden">
+                <div className="aspect-video bg-gradient-to-br from-slate-100 via-white to-slate-50 flex items-center justify-center overflow-hidden">
                   {dish.imageUrl ? (
                     <img 
                       src={dish.imageUrl} 
@@ -335,31 +350,37 @@ const FeaturedDishesPage = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <Utensils className="w-12 h-12 text-gray-400" />
+                    <div className="flex flex-col items-center justify-center text-gray-400 space-y-2">
+                      <Utensils className="w-10 h-10" />
+                      <span className="text-sm">{language === 'ar' ? 'لا توجد صورة' : 'No image'}</span>
+                    </div>
                   )}
                 </div>
                 
-                <CardContent className="p-4">
-                  <div className={`flex items-start justify-between mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <h4 className={`font-semibold ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-                      {language === 'ar' ? dish.nameAr : dish.nameEn}
-                    </h4>
-                    <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                      <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                <CardContent className="p-4 space-y-3">
+                  <div className={`flex items-start justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <div>
+                      <h4 className={`font-semibold text-gray-900 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
+                        {language === 'ar' ? dish.nameAr : dish.nameEn}
+                      </h4>
+                      <p className={`text-sm text-gray-600 mt-1 line-clamp-2 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
+                        {language === 'ar' ? dish.descriptionAr : dish.descriptionEn}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end rtl:items-start space-y-1">
+                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-100">
+                        {language === 'ar' ? 'مميز' : 'Featured'}
+                      </span>
                       {!dish.isAvailable && (
-                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded ml-1 rtl:ml-0 rtl:mr-1">
+                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
                           {language === 'ar' ? 'غير متاح' : 'Unavailable'}
                         </span>
                       )}
                     </div>
                   </div>
                   
-                  <p className={`text-sm text-gray-600 mb-3 line-clamp-2 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'}`}>
-                    {language === 'ar' ? dish.descriptionAr : dish.descriptionEn}
-                  </p>
-                  
                   <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <span className="font-bold text-lg text-blue-600">
+                    <span className="font-bold text-lg text-blue-700">
                       {dish.price} ر.س
                     </span>
                     <Button
@@ -367,7 +388,7 @@ const FeaturedDishesPage = () => {
                       size="sm"
                       variant={dish.isAvailable ? "outline" : "default"}
                       className={dish.isAvailable 
-                        ? "text-green-600 border-green-600 hover:bg-green-50" 
+                        ? "text-green-600 border-green-200 hover:bg-green-50" 
                         : "bg-red-600 hover:bg-red-700 text-white"
                       }
                       disabled={isSubmitting}

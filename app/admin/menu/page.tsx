@@ -124,6 +124,13 @@ const FullMenuManagePage = () => {
 
   // Data state
   const [categories, setCategories] = useState<Category[]>([]);
+  const getFeaturedCount = () =>
+    categories.reduce((count, category) => {
+      const subFeatured = category.subcategories.reduce((subCount, sub) => {
+        return subCount + sub.items.filter(item => item.isFeatured).length;
+      }, 0);
+      return count + subFeatured;
+    }, 0);
 
   // Check authentication
   useEffect(() => {
@@ -411,6 +418,20 @@ const FullMenuManagePage = () => {
   const handleItemSave = async () => {
     if (!itemFormData.nameEn.trim() || !itemFormData.nameAr.trim() || !itemFormData.price.trim()) {
       setSubmitStatus('error');
+      return;
+    }
+
+    // Enforce max 6 featured dishes
+    const featuredCount = getFeaturedCount();
+    const wasFeatured = selectedItem?.isFeatured ?? false;
+    const projectingToFeatured = itemFormData.isFeatured && !wasFeatured;
+    if (projectingToFeatured && featuredCount >= 6) {
+      setSubmitStatus('error');
+      toast.error(
+        language === 'ar'
+          ? 'لا يمكن إضافة أكثر من ٦ أطباق مميزة. أزل أحد الأطباق المميزة أولاً.'
+          : 'You cannot have more than 6 featured dishes. Remove one first.'
+      );
       return;
     }
 
@@ -1146,7 +1167,28 @@ const FullMenuManagePage = () => {
                 type="checkbox"
                 id="isFeatured"
                 checked={itemFormData.isFeatured}
-                onChange={(e) => setItemFormData({ ...itemFormData, isFeatured: e.target.checked })}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  if (!next) {
+                    setItemFormData({ ...itemFormData, isFeatured: false });
+                    return;
+                  }
+
+                  const featuredCount = getFeaturedCount();
+                  const alreadyFeatured = selectedItem?.isFeatured;
+                  const projected = featuredCount + (alreadyFeatured ? 0 : 1);
+
+                  if (projected > 6) {
+                    toast.error(
+                      language === 'ar'
+                        ? 'وصلت إلى الحد الأقصى (٦) من الأطباق المميزة.'
+                        : 'You reached the maximum (6) featured dishes.'
+                    );
+                    return;
+                  }
+
+                  setItemFormData({ ...itemFormData, isFeatured: true });
+                }}
                 className="rounded"
                 disabled={isSubmitting}
               />

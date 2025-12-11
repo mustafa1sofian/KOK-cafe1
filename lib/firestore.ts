@@ -1,13 +1,13 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  orderBy, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
   where,
   DocumentData,
   QuerySnapshot,
@@ -62,8 +62,6 @@ export interface Offer {
   price: number;
   validUntil: Date;
   imageUrl?: string;
-  badgeEn: string;
-  badgeAr: string;
   isActive: boolean;
   order: number;
   createdAt: Date;
@@ -106,6 +104,22 @@ export interface ContactInfo {
   emails: string[];
   addressEn: string;
   addressAr: string;
+  // Optional links for UI consumption
+  contactIconLinks?: {
+    phone?: string;
+    whatsapp?: string;
+    email?: string;
+    address?: string;
+  };
+  sidebarWhatsappLink?: string;
+  footerLinks?: {
+    phone?: string;
+    location?: string;
+    instagram?: string;
+    snapchat?: string;
+    whatsapp?: string;
+  };
+  addressLink?: string;
   updatedAt: Date;
 }
 
@@ -122,8 +136,23 @@ export interface SiteSettings {
   id: string;
   heroBackgroundImage?: string;
   aboutSectionImage?: string;
+  aboutTitleEn?: string;
+  aboutTitleAr?: string;
+  aboutContentEn?: string;
+  aboutContentAr?: string;
   showEventsSection?: boolean;
   showOffersSection?: boolean;
+  showHeroTicker?: boolean;
+
+  // Hero Slider (3 images)
+  heroSliderImages?: string[];
+
+  // Hero Text Content
+  heroTitleEn?: string;
+  heroTitleAr?: string;
+  heroSubtitleEn?: string;
+  heroSubtitleAr?: string;
+
   updatedAt: Date;
 }
 
@@ -247,38 +276,38 @@ export const deleteSubcategory = async (id: string): Promise<void> => {
 // Menu Items
 export const getMenuItems = async (subcategoryId?: string, isFeatured?: boolean): Promise<MenuItem[]> => {
   let q = query(collection(db, 'menuItems'));
-  
+
   if (subcategoryId && isFeatured !== undefined) {
     q = query(
-      collection(db, 'menuItems'), 
+      collection(db, 'menuItems'),
       where('subcategoryId', '==', subcategoryId),
       where('isFeatured', '==', isFeatured)
     );
   } else if (subcategoryId) {
     q = query(
-      collection(db, 'menuItems'), 
+      collection(db, 'menuItems'),
       where('subcategoryId', '==', subcategoryId)
     );
   } else if (isFeatured !== undefined) {
     q = query(
-      collection(db, 'menuItems'), 
+      collection(db, 'menuItems'),
       where('isFeatured', '==', isFeatured)
     );
   } else {
     q = query(collection(db, 'menuItems'), orderBy('order'));
   }
-  
+
   const querySnapshot = await getDocs(q);
   const menuItems = querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...convertTimestamp(doc.data())
   })) as MenuItem[];
-  
+
   // Sort by order in JavaScript when using filters
   if (subcategoryId || isFeatured !== undefined) {
     return menuItems.sort((a, b) => a.order - b.order);
   }
-  
+
   return menuItems;
 };
 
@@ -315,12 +344,12 @@ export const getOffers = async (isActive?: boolean): Promise<Offer[]> => {
     id: doc.id,
     ...convertTimestamp(doc.data())
   })) as Offer[];
-  
+
   // Sort by order in JavaScript when filtering by isActive
   if (isActive !== undefined) {
     return offers.sort((a, b) => a.order - b.order);
   }
-  
+
   return offers;
 };
 
@@ -359,13 +388,13 @@ export const getEvents = async (isActive?: boolean): Promise<Event[]> => {
     id: doc.id,
     ...convertTimestamp(doc.data())
   })) as Event[];
-  
+
   // Always sort by date in JavaScript when filtering by isActive
   // When not filtering, Firestore already sorted by date
   if (isActive !== undefined) {
     return events.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
-  
+
   return events;
 };
 
@@ -440,7 +469,7 @@ export const getContactInfo = async (): Promise<ContactInfo | null> => {
 export const updateContactInfo = async (contactInfo: Omit<ContactInfo, 'id' | 'updatedAt'>): Promise<void> => {
   const querySnapshot = await getDocs(collection(db, 'contactInfo'));
   const now = new Date();
-  
+
   if (querySnapshot.empty) {
     // Create new contact info
     await addDoc(collection(db, 'contactInfo'), {
@@ -472,10 +501,10 @@ export const updateWorkingHours = async (workingHours: Omit<WorkingHour, 'id' | 
   const querySnapshot = await getDocs(collection(db, 'workingHours'));
   const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
   await Promise.all(deletePromises);
-  
+
   // Add new working hours
   const now = new Date();
-  const addPromises = workingHours.map(hour => 
+  const addPromises = workingHours.map(hour =>
     addDoc(collection(db, 'workingHours'), {
       ...hour,
       updatedAt: now
@@ -498,7 +527,7 @@ export const getSiteSettings = async (): Promise<SiteSettings | null> => {
 export const updateSiteSettings = async (settings: Omit<SiteSettings, 'id' | 'updatedAt'>): Promise<void> => {
   const querySnapshot = await getDocs(collection(db, 'siteSettings'));
   const now = new Date();
-  
+
   if (querySnapshot.empty) {
     // Create new site settings
     await addDoc(collection(db, 'siteSettings'), {

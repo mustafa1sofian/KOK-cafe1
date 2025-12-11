@@ -120,125 +120,63 @@ const OffersSection = () => {
           </div>
         )}
 
-        {/* Desktop Grid */}
+        {/* Offers Grid - Vertical Glassmorphism Style */}
         {!isLoading && !error && offers.length > 0 && (
-          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {offers.map((offer, index) => (
-              <Card
+              <div
                 key={offer.id}
-                className={`group overflow-hidden hover:shadow-xl transition-all duration-300 bg-white border border-gray-100 hover:border-gray-200 rounded-2xl ${isVisible ? 'animate-scale-in' : 'opacity-0'
-                  }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
+                className={`relative group overflow-hidden rounded-3xl h-[450px] shadow-2xl transition-all duration-500 hover:shadow-green-900/20 ${isVisible ? 'animate-scale-in' : 'opacity-0'}`}
+                style={{ animationDelay: `${index * 0.15}s` }}
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                {/* Background Layer (Image or Gradient) */}
+                <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
                   <img
-                    src={offer.imageUrl || 'https://images.pexels.com/photos/1633578/pexels-photo-1633578.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop'}
+                    src={offer.imageUrl || 'https://images.pexels.com/photos/1633578/pexels-photo-1633578.jpeg?auto=compress&cs=tinysrgb&w=400&h=600&fit=crop'}
                     alt={language === 'ar' ? offer.titleAr : offer.titleEn}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  {/* Dark Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
+                </div>
 
-                  {/* Badge */}
-                  {(offer.badgeEn || offer.badgeAr) && (
-                    <div className="absolute top-3 right-3 rtl:right-auto rtl:left-3">
-                      <span className="bg-red-500 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg">
-                        {language === 'ar' ? offer.badgeAr : offer.badgeEn}
+                {/* Content Layer - Glassmorphism */}
+                <div className="absolute bottom-0 inset-x-0 p-6 flex flex-col justify-end h-full z-10">
+
+                  {/* Price Badge - Floating Top */}
+                  <div className={`absolute top-6 ${isRTL ? 'right-6' : 'left-6'}`}>
+                    <div className="bg-green-500/90 backdrop-blur-md border border-white/20 text-white rounded-2xl px-4 py-2 shadow-lg">
+                      <span className="block text-xl font-bold font-english leading-none">
+                        {offer.price}
+                      </span>
+                      <span className="block text-xs opacity-90 font-english mt-0.5">
+                        ر.س
                       </span>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Price on Image */}
-                  <div className="absolute bottom-3 left-3 rtl:left-auto rtl:right-3">
-                    <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg">
-                      <span className="text-lg font-bold text-blue-700">
-                        {offer.price} ر.س
+                  <div className={`transform transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white space-y-3 ${isRTL ? 'text-right' : 'text-left'}`}>
+
+                    <h3 className={`text-2xl md:text-2xl font-bold leading-tight drop-shadow-lg ${isRTL ? 'font-arabic' : 'font-english'}`}>
+                      {language === 'ar' ? offer.titleAr : offer.titleEn}
+                    </h3>
+
+                    <p className={`text-gray-300 text-sm md:text-base line-clamp-2 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 ${isRTL ? 'font-arabic' : 'font-english'}`}>
+                      {language === 'ar' ? offer.descriptionAr : offer.descriptionEn}
+                    </p>
+
+                    {/* Valid Until */}
+                    <div className={`flex items-center space-x-2 rtl:space-x-reverse text-sm text-gray-200 py-2 border-t border-white/10 mt-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <Calendar className="w-4 h-4 text-green-400" />
+                      <span className={isRTL ? 'font-arabic' : 'font-english'}>
+                        {isRTL ? 'حتى' : 'Until'} {formatDate(offer.validUntil)}
                       </span>
                     </div>
                   </div>
                 </div>
-
-                <CardContent className="p-4">
-                  <h3 className={`text-base font-semibold text-gray-900 mb-2 line-clamp-1 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
-                    }`}>
-                    {language === 'ar' ? offer.titleAr : offer.titleEn}
-                  </h3>
-
-                  <p className={`text-gray-600 text-sm leading-relaxed mb-3 line-clamp-2 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
-                    }`}>
-                    {language === 'ar' ? offer.descriptionAr : offer.descriptionEn}
-                  </p>
-
-                  <div className={`flex items-center text-xs text-gray-500 ${isRTL ? 'flex-row-reverse' : ''
-                    }`}>
-                    <Calendar className="w-3 h-3 mr-1 rtl:mr-0 rtl:ml-1 text-gray-400" />
-                    <span>{isRTL ? 'حتى' : 'Until'} {formatDate(offer.validUntil)}</span>
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
             ))}
-          </div>
-        )}
-
-        {/* Mobile Horizontal Scroll */}
-        {!isLoading && !error && offers.length > 0 && (
-          <div className="sm:hidden">
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory" style={{ scrollBehavior: 'smooth' }}>
-              {offers.map((offer, index) => (
-                <Card
-                  key={offer.id}
-                  className={`snap-center flex-none w-[280px] group overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-lg ${isVisible ? 'animate-scale-in' : 'opacity-0'
-                    }`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-                    <img
-                      src={offer.imageUrl || 'https://images.pexels.com/photos/1633578/pexels-photo-1633578.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop'}
-                      alt={language === 'ar' ? offer.titleAr : offer.titleEn}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-
-                    {/* Badge */}
-                    {(offer.badgeEn || offer.badgeAr) && (
-                      <div className="absolute top-3 right-3 rtl:right-auto rtl:left-3">
-                        <span className="bg-red-500 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg">
-                          {language === 'ar' ? offer.badgeAr : offer.badgeEn}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Price */}
-                    <div className="absolute bottom-3 left-3 rtl:left-auto rtl:right-3">
-                      <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg">
-                        <span className="text-lg font-bold text-blue-700">
-                          {offer.price} ر.س
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <CardContent className="p-4">
-                    <h3 className={`text-base font-semibold text-gray-900 mb-2 line-clamp-1 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
-                      }`}>
-                      {language === 'ar' ? offer.titleAr : offer.titleEn}
-                    </h3>
-
-                    <p className={`text-gray-600 text-sm mb-3 leading-relaxed line-clamp-2 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
-                      }`}>
-                      {language === 'ar' ? offer.descriptionAr : offer.descriptionEn}
-                    </p>
-
-                    <div className={`flex items-center text-xs text-gray-500 ${isRTL ? 'flex-row-reverse' : ''
-                      }`}>
-                      <Calendar className="w-3 h-3 mr-1 rtl:mr-0 rtl:ml-1 text-gray-400" />
-                      <span>{isRTL ? 'حتى' : 'Until'} {formatDate(offer.validUntil)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
           </div>
         )}
 

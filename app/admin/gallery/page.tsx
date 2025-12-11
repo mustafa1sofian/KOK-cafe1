@@ -60,10 +60,7 @@ const GalleryManagementPage = () => {
   // Form data
   const [formData, setFormData] = useState({
     imageFile: null as File | null,
-    imageUrl: '',
-    altEn: '',
-    altAr: '',
-    category: ''
+    imageUrl: ''
   });
 
   // Data state
@@ -105,18 +102,12 @@ const GalleryManagementPage = () => {
     if (action === 'edit' && image) {
       setFormData({
         imageFile: null,
-        imageUrl: image.imageUrl,
-        altEn: image.altEn,
-        altAr: image.altAr,
-        category: image.category
+        imageUrl: image.imageUrl
       });
     } else {
       setFormData({
         imageFile: null,
-        imageUrl: '',
-        altEn: '',
-        altAr: '',
-        category: ''
+        imageUrl: ''
       });
     }
     
@@ -126,7 +117,7 @@ const GalleryManagementPage = () => {
 
   const handleSave = async () => {
     // Validation
-    if (!formData.altEn.trim() || !formData.altAr.trim() || !formData.category.trim() || (!formData.imageFile && dialogAction === 'add')) {
+    if ((!formData.imageFile && dialogAction === 'add') && !formData.imageUrl) {
       setSubmitStatus('error');
       return;
     }
@@ -152,9 +143,9 @@ const GalleryManagementPage = () => {
 
       const imageData = {
         imageUrl,
-        altEn: formData.altEn.trim(),
-        altAr: formData.altAr.trim(),
-        category: formData.category.trim(),
+        altEn: '',
+        altAr: '',
+        category: '',
         order: dialogAction === 'add' ? galleryImages.length + 1 : selectedImage?.order || 1
       };
 
@@ -215,13 +206,6 @@ const GalleryManagementPage = () => {
       reader.readAsDataURL(file);
     }
   };
-
-  const categoryOptions = [
-    { value: 'interior', labelEn: 'Interior', labelAr: 'داخلي' },
-    { value: 'food', labelEn: 'Food', labelAr: 'طعام' },
-    { value: 'exterior', labelEn: 'Exterior', labelAr: 'خارجي' },
-    { value: 'events', labelEn: 'Events', labelAr: 'فعاليات' }
-  ];
 
   // Loading state
   if (isLoading) {

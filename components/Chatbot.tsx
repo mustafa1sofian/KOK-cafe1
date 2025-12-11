@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { Bot, X, Send, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 // نوع الرسالة
@@ -11,18 +11,6 @@ interface Message {
     sender: 'user' | 'bot';
     timestamp: Date;
 }
-
-
-
-
-import { getCategories, getSubcategories, getMenuItems } from '@/lib/firestore';
-import { getOffers } from '@/lib/firestore';
-import { getEvents } from '@/lib/firestore';
-
-// إعدادات DeepSeek API (يجب تمرير المفتاح من متغير بيئة)
-const DEEPSEEK_API_KEY = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY;
-const DEEPSEEK_API_URL = 'https://router.huggingface.co/v1/chat/completions';
-
 
 export default function Chatbot() {
     const { language, isRTL } = useLanguage();
@@ -56,161 +44,38 @@ export default function Chatbot() {
         }
     }, [isOpen, messages.length, language]);
 
-    // دالة لجلب البيانات وتكوين الـ System Prompt
-    const buildSystemPrompt = async () => {
-        try {
-            // جلب البيانات بشكل متوازي
-            const [categories, subcategories, menuItems, offers, events] = await Promise.all([
-                getCategories(),
-                getSubcategories(),
-                getMenuItems(),
-                getOffers(true),
-                getEvents(true)
-            ]);
-
-            // بناء هيكل المنيو
-            let menuText = "📋 **المنيو والأطباق المتوفرة:**\n";
-
-            categories.forEach(cat => {
-                const catSubcats = subcategories.filter(sub => sub.categoryId === cat.id);
-                if (catSubcats.length > 0) {
-                    menuText += `\n- قسم ${cat.nameAr}:\n`;
-                    catSubcats.forEach(sub => {
-                        const subItems = menuItems.filter(item => item.subcategoryId === sub.id && item.isAvailable);
-                        if (subItems.length > 0) {
-                            menuText += `  * ${sub.nameAr}:\n`;
-                            subItems.forEach(item => {
-                                menuText += `    • ${item.nameAr} (${item.price} ر.س)${item.descriptionAr ? ` - ${item.descriptionAr}` : ''}\n`;
-                            });
-                        }
-                    });
-                }
-            });
-
-            // تنسيق العروض
-            let offersText = "\n🔥 **العروض الحالية:**\n";
-            const activeOffers = offers.filter(o => new Date(o.validUntil) >= new Date());
-            if (activeOffers.length > 0) {
-                activeOffers.forEach(offer => {
-                    offersText += `• ${offer.titleAr}: ${offer.descriptionAr} بسعر ${offer.price} ر.س (ينتهي في ${new Date(offer.validUntil).toLocaleDateString('ar-SA')})\n`;
-                });
-            } else {
-                offersText += "لا توجد عروض خاصة حالياً.\n";
-            }
-
-            // تنسيق الفعاليات
-            let eventsText = "\n🎉 **الفعاليات القادمة:**\n";
-            const upcomingEvents = events.filter(e => new Date(e.date) >= new Date());
-            if (upcomingEvents.length > 0) {
-                upcomingEvents.forEach(event => {
-                    eventsText += `• ${event.titleAr}: بتاريخ ${new Date(event.date).toLocaleDateString('ar-SA')} الساعة ${event.time}، السعر ${event.price} ر.س للشخص.\n`;
-                });
-            } else {
-                eventsText += "لا توجد فعاليات قادمة حالياً.\n";
-            }
-
-            // الـ Prompt النهائي
-            return `
-أنت "محمد"، موظف استقبال في مطعم "كوكيان" (Kokian Cuisine).
-
-🌍 **قاعدة اللغة (Language Rule):**
-1. **العربية**: تكلم بلهجة سعودية "عفوية" جداً ومحترمة (يا هلا، سم، أبشر، على خشمي).
-2. **Other Languages**: If the user speaks ANY other language (English, French, Spanish, Chinese, etc.), **reply in the SAME language** fluently and professionally but keep a warm, friendly tone.
-
-⛔ **Business Rules (Apply in ALL languages):**
-1. **Answer Scope**: Only answer questions about the restaurant and food. Ignore off-topic queries politely.
-2. **Reservations**: ALWAYS encourage booking a table (for individuals & groups). "Booking online is best to guarantee your spot."
-3. **Gallery**: Suggest checking the website gallery for food/venue photos. "Check the Gallery section to see our vibes!"
-4. **Delivery**: ⛔ NEVER suggest delivery. We want them to visit us.
-5. **Conciseness**: Keep answers short and to the point.
-
-📋 **Restaurant Info:**
-- **Hours**: 7:00 AM - 3:00 AM (Daily).
-- **Location**: Jeddah, Obhur Al Janobiyah, King Abdulaziz Road.
-- **Booking**: Available for all (Singles & Families).
-
-${menuText}
-
-${offersText}
-
-${eventsText}
-
-**Simulation Examples:**
-- User (Ar): "فيه طاولات؟" -> You: "يا هلا! عشان ترتاح وتضمن مكانك، احجز من الزر فوق 👆. ولا يفوتك تشوف صور الجلسات بالمعرض 📸."
-- User (En): "Do you have tables?" -> You: "Welcome! To guarantee your spot, it's best to book via the button above 👆. You can also check our Gallery to see the venue! 📸"
-- User (Indonesian): "Ada meja kosong?" -> You: "Selamat datang! Untuk memastikan tempat, silakan pesan melalui tombol di atas 👆. Lihat juga Galeri kami! 📸"
-`;
-        } catch (error) {
-            console.error('Error fetching data for system prompt:', error);
-            // Fallback prompt in case of error
-            return `
-أنت المساعد الذكي لمطعم كوكيان.
-الموقع: جدة، أبحر الجنوبية.
-ساعات العمل: 7 صباحاً - 3 فجراً.
-لأي استفسار عن المنيو أو الحجز يرجى التواصل على: 0558121096.
-            `;
-        }
-    };
-
-
-    // إرسال الرسالة إلى DeepSeek API مباشرة
+    // إرسال الرسالة إلى API الخادم
     const sendMessageToAPI = async (userMessage: string): Promise<string> => {
         try {
-            // بناء System Prompt ديناميكي
-            const dynamicSystemPrompt = await buildSystemPrompt();
-
             // بناء تاريخ المحادثة
-            const conversationHistory = messages
+            const messagesHistory = messages
                 .filter(msg => msg.sender !== 'bot' || !msg.text.includes('مرحباً بك'))
                 .map(msg => ({
                     role: msg.sender === 'user' ? 'user' : 'assistant',
                     content: msg.text
                 }));
 
-            // تجهيز الرسائل
-            const apiMessages = [
-                { role: 'system', content: dynamicSystemPrompt },
-                ...conversationHistory,
-                { role: 'user', content: userMessage }
-            ];
-
-            // الاتصال بـ DeepSeek API
-            const response = await fetch(DEEPSEEK_API_URL, {
+            // الاتصال بالخادم الخاص بنا
+            const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    model: 'deepseek-ai/DeepSeek-V3',
-                    messages: apiMessages,
-                    max_tokens: 500,
-                    temperature: 0.7,
-                    top_p: 0.9,
+                    message: userMessage,
+                    messagesHistory: messagesHistory
                 }),
             });
 
-
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('DeepSeek API error:', response.status, errorText);
                 throw new Error('API request failed');
             }
 
             const data = await response.json();
-
-            // استخراج الرد
-            if (data.choices && data.choices[0] && data.choices[0].message) {
-                return data.choices[0].message.content;
-            }
-
-            // رد افتراضي في حالة عدم وجود استجابة
-            return language === 'ar'
-                ? 'عذراً، لم أتمكن من فهم سؤالك. هل يمكنك إعادة صياغته؟'
-                : 'Sorry, I couldn\'t understand your question. Could you rephrase it?';
+            return data.response;
 
         } catch (error) {
-            console.error('Error calling DeepSeek API:', error);
+            console.error('Error calling Chat API:', error);
 
             // رد افتراضي عند حدوث خطأ
             return language === 'ar'
@@ -259,32 +124,28 @@ ${eventsText}
     return (
         <>
             {/* زر الشات العائم */}
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className={`
-          fixed right-6 bottom-6 z-50
-          w-12 h-12 md:w-14 md:h-14
-          bg-gradient-to-br from-blue-700 to-blue-900
-          hover:from-blue-800 hover:to-blue-950
-          text-white rounded-full shadow-2xl
-          flex items-center justify-center
-          transition-all duration-300 ease-in-out
-          hover:scale-110 active:scale-95
-          group
-        `}
-                aria-label={language === 'ar' ? 'فتح الشات' : 'Open Chat'}
-            >
-                {isOpen ? (
-                    <X className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:rotate-90" />
-                ) : (
-                    <MessageCircle className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:scale-110" />
-                )}
+            {!isOpen && (
+                <button
+                    onClick={() => setIsOpen(true)}
+                    className={`
+              fixed right-6 bottom-24 md:bottom-6 z-[60]
+              w-12 h-12 md:w-14 md:h-14
+              bg-gradient-to-br from-blue-700 to-blue-900
+              hover:from-blue-800 hover:to-blue-950
+              text-white rounded-full shadow-2xl
+              flex items-center justify-center
+              transition-all duration-300 ease-in-out
+              hover:scale-110 active:scale-95
+              group
+            `}
+                    aria-label={language === 'ar' ? 'فتح الشات' : 'Open Chat'}
+                >
+                    <Bot className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:scale-110" />
 
-                {/* نقطة الإشعار */}
-                {!isOpen && (
+                    {/* نقطة الإشعار */}
                     <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
-                )}
-            </button>
+                </button>
+            )}
 
             {/* نافذة الشات المنبثقة */}
             <div
@@ -303,17 +164,25 @@ ${eventsText}
                     <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
                         <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                                <MessageCircle className="w-5 h-5" />
+                                <Bot className="w-6 h-6" />
                             </div>
                             <div className={isRTL ? 'text-right' : 'text-left'}>
                                 <h3 className={`font-bold text-base ${isRTL ? 'font-arabic' : ''}`}>
-                                    {language === 'ar' ? 'مساعد كوكيان' : 'Kokian Assistant'}
+                                    {language === 'ar' ? 'المساعد الذكي (Kokian AI)' : 'Kokian AI Assistant'}
                                 </h3>
                                 <p className="text-xs text-white/90">
                                     {language === 'ar' ? 'متصل الآن' : 'Online now'}
                                 </p>
                             </div>
                         </div>
+
+                        {/* Close Button Mobile */}
+                        <button
+                            onClick={() => setIsOpen(false)}
+                            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
                 </div>
 

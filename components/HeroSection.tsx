@@ -1,139 +1,149 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getSiteSettings } from '@/lib/firestore';
+import HeroTicker from './HeroTicker';
 
 const HeroSection = () => {
-  const { t, isRTL, language } = useLanguage();
-  const defaultImage = 'https://images.pexels.com/photos/941861/pexels-photo-941861.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop';
-  const [backgroundImage, setBackgroundImage] = React.useState<string>(defaultImage);
-  const [isImageLoaded, setIsImageLoaded] = React.useState<boolean>(false);
-  const [isImageReady, setIsImageReady] = React.useState<boolean>(false);
+    const { t, isRTL, language } = useLanguage();
+    const defaultImages = [
+        'https://images.pexels.com/photos/941861/pexels-photo-941861.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop',
+        'https://images.pexels.com/photos/1581384/pexels-photo-1581384.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop',
+        'https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop'
+    ];
 
-  // Load background image from site settings
-  React.useEffect(() => {
-    const loadBackgroundImage = async () => {
-      try {
-        const settings = await getSiteSettings();
-        if (settings?.heroBackgroundImage && settings.heroBackgroundImage !== defaultImage) {
-          // Preload the image before setting it
-          const img = new Image();
-          img.src = settings.heroBackgroundImage;
+    const [sliderImages, setSliderImages] = useState<string[]>(defaultImages);
+    const [currentSlide, setCurrentSlide] = useState(0);
+    const [isImageReady, setIsImageReady] = useState(false);
+    const [showTicker, setShowTicker] = useState(true);
+    const [heroTitle, setHeroTitle] = useState({ en: '', ar: '' });
+    const [heroSubtitle, setHeroSubtitle] = useState({ en: '', ar: '' });
 
-          img.onload = () => {
-            setBackgroundImage(settings.heroBackgroundImage);
-            setIsImageLoaded(true);
-            // Small delay to ensure smooth transition
-            setTimeout(() => setIsImageReady(true), 100);
-          };
+    // Load settings
+    useEffect(() => {
+        const loadSettings = async () => {
+            try {
+                const settings = await getSiteSettings();
 
-          img.onerror = () => {
-            console.error('Error loading hero background image');
-            setIsImageLoaded(true);
-            setIsImageReady(true);
-          };
-        } else {
-          // Use default image
-          setIsImageLoaded(true);
-          setIsImageReady(true);
-        }
-      } catch (error) {
-        console.error('Error loading hero background image:', error);
-        setIsImageLoaded(true);
-        setIsImageReady(true);
-      }
+                // Load slider images
+                if (settings?.heroSliderImages && settings.heroSliderImages.length > 0) {
+                    const validImages = settings.heroSliderImages.filter(img => img && img.trim() !== '');
+                    if (validImages.length > 0) {
+                        setSliderImages(validImages);
+                    }
+                }
+
+                // Load text content
+                setHeroTitle({
+                    en: settings?.heroTitleEn || 'Welcome to Kokian',
+                    ar: settings?.heroTitleAr || 'مرحباً بكم في كوكيان'
+                });
+                setHeroSubtitle({
+                    en: settings?.heroSubtitleEn || 'Experience luxury dining at its finest',
+                    ar: settings?.heroSubtitleAr || 'استمتع بتجربة طعام فاخرة لا مثيل لها'
+                });
+
+                // Set Ticker Visibility
+                setShowTicker(settings?.showHeroTicker ?? true);
+
+                setIsImageReady(true);
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                setIsImageReady(true);
+            }
+        };
+
+        loadSettings();
+    }, []);
+
+    // Auto-slide every 5 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentSlide((prev) => (prev + 1) % sliderImages.length);
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [sliderImages.length]);
+
+    const scrollToReservation = () => {
+        document.getElementById('reservation')?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    loadBackgroundImage();
-  }, []);
+    const scrollToMenu = () => {
+        if (typeof window !== 'undefined') {
+            window.location.href = '/menu';
+        }
+    };
 
-  const scrollToReservation = () => {
-    document.getElementById('reservation')?.scrollIntoView({ behavior: 'smooth' });
-  };
+    return (
+        <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
+            {/* Slider Background */}
+            <div className="absolute inset-0 z-0">
+                {sliderImages.map((image, index) => (
+                    <div
+                        key={index}
+                        className={`absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ${index === currentSlide && isImageReady ? 'opacity-100' : 'opacity-0'
+                            }`}
+                        style={{ backgroundImage: `url('${image}')` }}
+                    />
+                ))}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-black/20 to-transparent" />
+            </div>
 
-  return (
-    <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Image/Video */}
-      <div className="absolute inset-0 z-0">
-        {/* Loading skeleton */}
-        {!isImageLoaded && (
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black animate-pulse" />
-        )}
+            {/* Content */}
+            <div className="relative z-10 text-center px-4 md:px-8 max-w-5xl mx-auto">
+                <h1 className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-2xl ${isRTL ? 'font-arabic' : 'font-english'
+                    }`}>
+                    {language === 'ar' ? heroTitle.ar : heroTitle.en}
+                </h1>
+                <p className={`text-lg sm:text-xl md:text-2xl text-gray-200 mb-10 leading-relaxed drop-shadow-lg max-w-3xl mx-auto ${isRTL ? 'font-arabic' : 'font-english'
+                    }`}>
+                    {language === 'ar' ? heroSubtitle.ar : heroSubtitle.en}
+                </p>
 
-        {/* Background Image with smooth transition */}
-        <div
-          className={`w-full h-full bg-cover bg-center transition-opacity duration-1000 ${isImageReady ? 'opacity-100' : 'opacity-0'
-            }`}
-          style={{
-            backgroundImage: `url('${backgroundImage}')`,
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80" />
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-black/20 to-transparent" />
-      </div>
+                {/* CTA Buttons */}
+                <div className={`flex flex-col sm:flex-row gap-4 justify-center items-center ${isRTL ? 'sm:flex-row-reverse' : ''
+                    }`}>
+                    <Button
+                        onClick={scrollToReservation}
+                        size="lg"
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg rounded-full shadow-2xl hover:shadow-blue-900/50 transition-all duration-300 transform hover:scale-105 w-full sm:w-auto"
+                    >
+                        {t('bookNow')}
+                    </Button>
+                    <Button
+                        onClick={scrollToMenu}
+                        size="lg"
+                        variant="outline"
+                        className="bg-white/10 backdrop-blur-md border-2 border-white/30 text-white hover:bg-white/20 px-8 py-6 text-lg rounded-full shadow-2xl transition-all duration-300 transform hover:scale-105 w-full sm:w-auto"
+                    >
+                        {t('viewMenu')}
+                    </Button>
+                </div>
+            </div>
 
-      {/* Content */}
-      <div className="relative z-10 container mx-auto px-4 text-center pt-16 md:pt-0">
-        <div className="max-w-5xl mx-auto animate-slide-up">
-          <h1 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-2xl ${isRTL ? 'font-arabic' : 'font-english'
-            }`}>
-            {t('heroTitle')}
-          </h1>
+            {/* Slider Dots */}
+            <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-20 flex gap-3">
+                {sliderImages.map((_, index) => (
+                    <button
+                        key={index}
+                        onClick={() => setCurrentSlide(index)}
+                        className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentSlide
+                                ? 'bg-white w-8'
+                                : 'bg-white/40 hover:bg-white/60'
+                            }`}
+                        aria-label={`Go to slide ${index + 1}`}
+                    />
+                ))}
+            </div>
 
-          <p className={`text-base sm:text-lg md:text-xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed drop-shadow-lg px-4 ${isRTL ? 'font-arabic' : 'font-english'
-            }`}>
-            {t('heroSubtitle')}
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-center px-4">
-            <Button
-              size="lg"
-              onClick={scrollToReservation}
-              className={`w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-8 py-4 text-lg transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-3xl rounded-full border-2 border-blue-400/50 ${isRTL ? 'font-arabic' : 'font-english'
-                }`}
-            >
-              {t('bookNow')}
-            </Button>
-
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => window.location.href = '/menu'}
-              className={`w-full sm:w-auto bg-transparent border-2 border-white/80 text-white hover:bg-white hover:text-black font-semibold px-8 py-4 text-lg transition-all duration-300 transform hover:scale-105 rounded-full backdrop-blur-sm ${isRTL ? 'font-arabic' : 'font-english'
-                }`}
-            >
-              {language === 'ar' ? 'القائمة' : 'Menu'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Floating Elements */}
-        <div className="absolute top-1/4 left-10 w-20 h-20 bg-blue-400/10 rounded-full blur-xl animate-pulse hidden lg:block" />
-        <div className="absolute top-1/3 right-16 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse hidden lg:block" />
-        <div className="absolute bottom-1/4 left-1/4 w-16 h-16 bg-blue-600/20 rounded-full blur-lg animate-pulse hidden lg:block" />
-      </div>
-
-      {/* Scroll Indicator */}
-      <div className="absolute bottom-6 md:bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce z-20">
-        <svg
-          width="28"
-          height="28"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="text-white/60 hover:text-blue-400 transition-colors duration-300 cursor-pointer drop-shadow-lg"
-          onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
-        >
-          <path
-            d="M12 2C13.1 2 14 2.9 14 4V12L15.5 10.5L16.9 11.9L12 16.8L7.1 11.9L8.5 10.5L10 12V4C10 2.9 10.9 2 12 2Z"
-            fill="currentColor"
-          />
-        </svg>
-      </div>
-    </section>
-  );
+            {/* Hero Ticker */}
+            {showTicker && <HeroTicker />}
+        </section>
+    );
 };
 
 export default HeroSection;

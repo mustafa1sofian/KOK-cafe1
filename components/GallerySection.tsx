@@ -179,32 +179,34 @@ const GallerySection = () => {
             </div>
 
             {/* Mobile Single Column */}
-            <div className="sm:hidden space-y-4">
-              {galleryImages.map((image, index) => (
-                <div
-                  key={image.id}
-                  className={`cursor-pointer group ${isVisible ? 'animate-fade-in' : 'opacity-0'
-                    }`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                  onClick={() => openModal(image.imageUrl)}
-                >
-                  <div className="relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-gray-100 to-gray-200">
-                    <img
-                      src={image.imageUrl}
-                      alt={language === 'ar' ? image.altAr : image.altEn}
-                      className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                      <div className="text-white text-center">
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm border-2 border-white/50 rounded-full flex items-center justify-center mx-auto shadow-lg">
-                          <span className="text-xl font-bold">+</span>
+            <div className="sm:hidden -mx-4">
+              <div className="flex gap-4 overflow-x-auto pb-4 px-4 scrollbar-hide snap-x snap-mandatory">
+                {galleryImages.map((image, index) => (
+                  <div
+                    key={image.id}
+                    className={`cursor-pointer group min-w-[75%] max-w-[80%] snap-center ${isVisible ? 'animate-fade-in' : 'opacity-0'
+                      }`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                    onClick={() => openModal(image.imageUrl)}
+                  >
+                    <div className="relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-gray-100 to-gray-200">
+                      <img
+                        src={image.imageUrl}
+                        alt={language === 'ar' ? image.altAr : image.altEn}
+                        className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                        <div className="text-white text-center">
+                          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm border-2 border-white/50 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                            <span className="text-xl font-bold">+</span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </>
         )}

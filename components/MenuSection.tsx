@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getMenuItems, type MenuItem as FirestoreMenuItem } from '@/lib/firestore';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface MenuItem extends FirestoreMenuItem {
   // All properties inherited from FirestoreMenuItem
@@ -17,6 +17,7 @@ const MenuSection = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const isRTL = language === 'ar';
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -60,6 +61,7 @@ const MenuSection = () => {
   // Load data on component mount
   useEffect(() => {
     loadFeaturedItems();
+    setActiveIndex(0);
   }, [language]);
 
   // Memoize category badge logic for performance
@@ -116,9 +118,88 @@ const MenuSection = () => {
           </div>
         )}
 
-        {/* Menu Items Grid */}
+        {/* Mobile Slider */}
         {!isLoading && !error && menuItems.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mb-10 md:mb-12">
+          <div className="md:hidden mb-10">
+            {(() => {
+              const current = menuItems[activeIndex % menuItems.length];
+              return (
+                <div className="relative">
+                  <div className="flex justify-center">
+                    <Card className="w-full max-w-sm group overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-md">
+                      <div className="relative w-full h-64 overflow-hidden bg-gray-100">
+                        <img
+                          src={current.imageUrl || 'https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop'}
+                          alt={language === 'ar' ? current.nameAr : current.nameEn}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+                        <div className="absolute bottom-3 left-3 rtl:left-auto rtl:right-3">
+                          <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg">
+                            <span className="text-base font-bold text-blue-700">
+                              {current.price} ر.س
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="absolute top-3 right-3 rtl:right-auto rtl:left-3">
+                          <span className="bg-blue-600 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg">
+                            {language === 'ar' ? 'مميز' : 'Featured'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <CardContent className="p-5 space-y-2">
+                        <h3 className={`text-lg font-semibold text-gray-900 line-clamp-1 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
+                          }`}>
+                          {language === 'ar' ? current.nameAr : current.nameEn}
+                        </h3>
+                        <p className={`text-gray-600 text-sm leading-relaxed line-clamp-3 ${isRTL ? 'font-arabic text-right' : 'font-english text-left'
+                          }`}>
+                          {language === 'ar' ? current.descriptionAr : current.descriptionEn}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {menuItems.length > 1 && (
+                    <>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="absolute -left-3 top-1/2 -translate-y-1/2 rounded-full shadow-lg"
+                        onClick={() => setActiveIndex((prev) => (prev - 1 + menuItems.length) % menuItems.length)}
+                        aria-label={language === 'ar' ? 'السابق' : 'Previous'}
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 rounded-full shadow-lg"
+                        onClick={() => setActiveIndex((prev) => (prev + 1) % menuItems.length)}
+                        aria-label={language === 'ar' ? 'التالي' : 'Next'}
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+            {menuItems.length > 1 && (
+              <p className={`mt-4 text-center text-sm text-gray-600 ${isRTL ? 'font-arabic' : 'font-english'}`}>
+                {language === 'ar' ? 'اسحب أو استخدم الأسهم لاستعراض باقي الأطباق' : 'Swipe or use arrows to browse more dishes'}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Menu Items Grid (Desktop/Tablet) */}
+        {!isLoading && !error && menuItems.length > 0 && (
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mb-10 md:mb-12">
             {menuItems.map((item, index) => (
               <Card
                 key={item.id}
@@ -135,7 +216,6 @@ const MenuSection = () => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
-                  {/* Price Badge on Image */}
                   <div className="absolute bottom-3 left-3 rtl:left-auto rtl:right-3">
                     <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg">
                       <span className="text-base md:text-lg font-bold text-blue-700">
@@ -144,7 +224,6 @@ const MenuSection = () => {
                     </div>
                   </div>
 
-                  {/* Featured Badge */}
                   {item.isFeatured && (
                     <div className="absolute top-3 right-3 rtl:right-auto rtl:left-3">
                       <span className="bg-blue-600 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg">

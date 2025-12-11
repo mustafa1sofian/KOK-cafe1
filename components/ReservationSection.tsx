@@ -9,7 +9,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, Clock, Users, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { addReservation } from '@/lib/firestore';
+import { addReservation, addEventReservation, getEvents, type Event as FirestoreEvent } from '@/lib/firestore';
+import { CustomDatePicker } from '@/components/custom/CustomDatePicker';
+import { CustomTimePicker } from '@/components/custom/CustomTimePicker';
+import { CustomPhoneInput } from '@/components/custom/CustomPhoneInput';
+
+interface ReservationEvent extends FirestoreEvent {
+}
 
 const ReservationSection = () => {
   const { t, isRTL, language } = useLanguage();
@@ -21,6 +27,13 @@ const ReservationSection = () => {
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [termsError, setTermsError] = useState<string>('');
   const sectionRef = useRef<HTMLElement>(null);
+
+  const [reservationType, setReservationType] = useState<'table' | 'event'>('table');
+  const [events, setEvents] = useState<ReservationEvent[]>([]);
+  const [isEventsLoading, setIsEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string>('');
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [eventError, setEventError] = useState<string>('');
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -52,10 +65,70 @@ const ReservationSection = () => {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setIsEventsLoading(true);
+        setEventsError('');
+        const eventsData = await getEvents(true);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const upcomingEvents = eventsData.filter(event => {
+          const eventDate = new Date(event.date);
+          eventDate.setHours(0, 0, 0, 0);
+          return eventDate >= today;
+        }).sort((a, b) => a.date.getTime() - b.date.getTime());
+        setEvents(upcomingEvents as ReservationEvent[]);
+      } catch (error) {
+        console.error('Error loading events for reservations:', error);
+        setEventsError(language === 'ar' ? 'حدث خطأ في تحميل الحفلات المتاحة' : 'Error loading available events');
+      } finally {
+        setIsEventsLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, [language]);
+
+  useEffect(() => {
+    const handleOpenReservation = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        type: 'table' | 'event';
+        eventId?: string;
+        eventTitle?: string;
+        eventDate?: string;
+        eventTime?: string;
+      }>;
+
+      const detail = customEvent.detail;
+      if (!detail) return;
+
+      setReservationType(detail.type === 'event' ? 'event' : 'table');
+
+      if (detail.eventId) {
+        setSelectedEventId(detail.eventId);
+        setEventError('');
+      }
+
+      if (detail.eventDate || detail.eventTime || detail.eventTitle) {
+        setFormData(prev => ({
+          ...prev,
+          date: detail.eventDate ? detail.eventDate.split('T')[0] : prev.date,
+          time: detail.eventTime || prev.time,
+          notes: prev.notes || (language === 'ar'
+            ? `حجز حضور فعالية${detail.eventTitle ? `: ${detail.eventTitle}` : ''}`
+            : `Event booking${detail.eventTitle ? `: ${detail.eventTitle}` : ''}`)
+        }));
+      }
+    };
+
+    window.addEventListener('kokian-open-reservation', handleOpenReservation as EventListener);
+    return () => window.removeEventListener('kokian-open-reservation', handleOpenReservation as EventListener);
+  }, [language]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate phone number
     const fullPhoneNumber = formData.countryCode + formData.phone.replace(/\D/g, '');
     const phoneRegex = /^\+\d{10,15}$/;
 
@@ -81,25 +154,52 @@ const ReservationSection = () => {
       return;
     }
 
-    if (!formData.customerName.trim() || !formData.phone.trim() || !formData.email.trim() || !formData.date || !formData.time) {
+    if (!formData.customerName.trim() || !formData.phone.trim() || !formData.date || !formData.time) {
       setSubmitStatus('error');
       return;
     }
 
-    // Check if terms are agreed
+    if (reservationType === 'event') {
+      if (!selectedEventId) {
+        setEventError(language === 'ar' ? 'الرجاء اختيار الحفلة التي ترغب في حضورها' : 'Please select the event you want to attend');
+        setSubmitStatus('error');
+        return;
+      }
+      setEventError('');
+    }
+
     if (!termsAgreed) {
       setTermsError(t('termsError'));
       setSubmitStatus('error');
       return;
     }
 
-    // Clear phone error if validation passes
     setPhoneError('');
     setTermsError('');
 
     setIsSubmitting(true);
     try {
       const totalGuests = formData.adults + formData.children;
+      let selectedEvent: ReservationEvent | undefined;
+      if (reservationType === 'event' && selectedEventId) {
+        selectedEvent = events.find(event => event.id === selectedEventId);
+      }
+
+      if (reservationType === 'event' && selectedEvent) {
+        const totalPrice = selectedEvent.price * totalGuests;
+
+        await addEventReservation({
+          eventId: selectedEvent.id,
+          eventTitle: language === 'ar' ? selectedEvent.titleAr : selectedEvent.titleEn,
+          customerName: formData.customerName.trim(),
+          phone: fullPhoneNumber,
+          email: formData.email.trim(),
+          seats: totalGuests,
+          totalPrice,
+          status: 'new',
+          notes: language === 'ar' ? 'حجز فعالية من نموذج الحجوزات' : 'Event reservation from booking form'
+        });
+      }
 
       await addReservation({
         customerName: formData.customerName.trim(),
@@ -111,9 +211,17 @@ const ReservationSection = () => {
         adults: formData.adults,
         children: formData.children,
         seatingPreference: formData.seatingPreference,
-        type: 'table',
+        type: reservationType === 'event' ? 'event' : 'table',
         status: 'new',
-        notes: formData.notes.trim()
+        notes: formData.notes.trim(),
+        ...(reservationType === 'event' && selectedEvent
+          ? {
+              eventId: selectedEvent.id,
+              eventTitle: language === 'ar' ? selectedEvent.titleAr : selectedEvent.titleEn,
+              seats: totalGuests,
+              totalPrice: selectedEvent.price * totalGuests
+            }
+          : {})
       });
 
       setSubmitStatus('success');
@@ -131,6 +239,8 @@ const ReservationSection = () => {
         seatingPreference: 'indoor-non-smoking',
         notes: ''
       });
+      setReservationType('table');
+      setSelectedEventId(null);
       setTermsAgreed(false);
 
       setTimeout(() => {
@@ -174,10 +284,11 @@ const ReservationSection = () => {
           </p>
         </div>
 
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-xl md:max-w-5xl mx-auto">
+          {/* ... Card ... */}
           <Card className={`shadow-2xl border-0 bg-white ${isVisible ? 'animate-scale-in' : 'opacity-0'}`}>
-            <CardContent className="p-5 md:p-6">
-              {/* Success Message */}
+            <CardContent className="p-5 md:p-8">
+              {/* ... submitStatus ... */}
               {submitStatus === 'success' && (
                 <div className={`mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-3 rtl:space-x-reverse ${isRTL ? 'flex-row-reverse' : ''
                   }`}>
@@ -205,9 +316,9 @@ const ReservationSection = () => {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Phone & Name Group */}
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className={`text-sm font-semibold ${isRTL ? 'text-right' : 'text-left'}`}>
                       {t('name')}
@@ -222,61 +333,38 @@ const ReservationSection = () => {
                     />
                   </div>
 
+
+
                   <div className="space-y-2">
                     <Label className={`text-sm font-semibold ${isRTL ? 'text-right' : 'text-left'}`}>
                       {t('phone')}
                     </Label>
-                    <div className="grid grid-cols-[80px_1fr] gap-2" style={{ direction: 'ltr' }}>
-                      <select
-                        value={formData.countryCode}
-                        onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
-                        className="h-11 px-2 border rounded-md bg-gray-50 text-sm focus:ring-2 focus:ring-black focus:outline-none"
-                        disabled={isSubmitting}
-                      >
-                        <option value="+966">🇸🇦 +966</option>
-                        <option value="+971">🇦🇪 +971</option>
-                        <option value="+965">🇰🇼 +965</option>
-                        <option value="+973">🇧🇭 +973</option>
-                        <option value="+974">🇶🇦 +974</option>
-                        <option value="+968">🇴🇲 +968</option>
-                      </select>
-                      <Input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/[^\d\s\-\(\)]/g, '');
-                          setFormData({ ...formData, phone: value });
-                        }}
-                        className={`h-11 font-english ${phoneError ? 'border-red-500 focus:border-red-500' : ''
-                          }`}
-                        placeholder="501234567"
-                        required
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    {phoneError && (
-                      <p className={`text-red-500 text-xs mt-1 ${isRTL ? 'text-right font-arabic' : 'text-left font-english'}`}>
-                        {phoneError}
-                      </p>
-                    )}
+                    <CustomPhoneInput
+                      countryCode={formData.countryCode}
+                      phoneNumber={formData.phone}
+                      onCountryCodeChange={(code) => setFormData({ ...formData, countryCode: code })}
+                      onPhoneNumberChange={(number) => setFormData({ ...formData, phone: number })}
+                      error={phoneError}
+                      disabled={isSubmitting}
+                    />
                   </div>
                 </div>
 
                 {/* Date & Time Compact Row */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className={`text-sm font-semibold ${isRTL ? 'text-right' : 'text-left'}`}>
                       {t('date')}
                     </Label>
                     <div className="relative">
-                      <Input
-                        type="date"
-                        value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        min={today}
-                        className={`h-11 ${isRTL ? 'text-right' : 'text-left'}`}
-                        required
-                        disabled={isSubmitting}
+                      <CustomDatePicker
+                        value={formData.date ? new Date(formData.date) : undefined}
+                        onChange={(date) => setFormData({
+                          ...formData,
+                          date: date ? date.toISOString().split('T')[0] : ''
+                        })}
+                        minDate={new Date()}
+                        placeholder={language === 'ar' ? 'اختر التاريخ' : 'Pick a date'}
                       />
                     </div>
                   </div>
@@ -286,20 +374,124 @@ const ReservationSection = () => {
                       {t('time')}
                     </Label>
                     <div className="relative">
-                      <Input
-                        type="time"
+                      <CustomTimePicker
                         value={formData.time}
-                        onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                        className={`h-11 ${isRTL ? 'text-right' : 'text-left'}`}
-                        required
-                        disabled={isSubmitting}
+                        onChange={(time) => setFormData({ ...formData, time })}
+                        placeholder={language === 'ar' ? 'اختر الوقت' : 'Select time'}
                       />
                     </div>
                   </div>
                 </div>
 
+                <div className="space-y-3">
+                  <Label className={`text-sm font-semibold ${isRTL ? 'text-right' : 'text-left'}`}>
+                    {language === 'ar' ? 'نوع الحجز' : 'Reservation Type'}
+                  </Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReservationType('table');
+                        setEventError('');
+                      }}
+                      className={`flex flex-col items-center justify-center rounded-xl border px-3 py-3 text-sm font-medium transition-all ${reservationType === 'table'
+                        ? 'bg-black text-white border-black shadow-md scale-[1.02]'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        }`}
+                    >
+                      <span className="text-lg mb-1">🍽️</span>
+                      <span>{language === 'ar' ? 'حجز طاولة' : 'Table Reservation'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReservationType('event')}
+                      className={`flex flex-col items-center justify-center rounded-xl border px-3 py-3 text-sm font-medium transition-all ${reservationType === 'event'
+                        ? 'bg-purple-700 text-white border-purple-700 shadow-md scale-[1.02]'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        }`}
+                    >
+                      <span className="text-lg mb-1">🎉</span>
+                      <span>{language === 'ar' ? 'حجز حضور حفلة / فعالية' : 'Event Attendance'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {reservationType === 'event' && (
+                  <div className="space-y-3">
+                    <Label className={`text-sm font-semibold ${isRTL ? 'text-right' : 'text-left'}`}>
+                      {language === 'ar' ? 'اختر الحفلة التي ترغب في حضورها' : 'Choose the event you want to attend'}
+                    </Label>
+
+                    {isEventsLoading ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                      </div>
+                    ) : eventsError ? (
+                      <p className={`text-red-500 text-sm ${isRTL ? 'text-right' : 'text-left'}`}>{eventsError}</p>
+                    ) : events.length === 0 ? (
+                      <p className={`text-gray-500 text-sm ${isRTL ? 'text-right' : 'text-left'}`}>
+                        {language === 'ar' ? 'لا توجد حفلات متاحة حالياً' : 'No events available at the moment'}
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {events.map(event => {
+                          const eventDate = new Date(event.date);
+                          const day = eventDate.getDate();
+                          const monthLabel = eventDate.toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US', { month: 'short' });
+
+                          return (
+                            <button
+                              key={event.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedEventId(event.id);
+                                setEventError('');
+                                setFormData(prev => ({
+                                  ...prev,
+                                  date: eventDate.toISOString().split('T')[0],
+                                  time: event.time,
+                                  notes: prev.notes || (language === 'ar'
+                                    ? `حجز حضور فعالية: ${event.titleAr}`
+                                    : `Event booking: ${event.titleEn}`)
+                                }));
+                              }}
+                              className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm transition-all ${selectedEventId === event.id
+                                ? 'bg-purple-700 text-white border-purple-700 shadow-md scale-[1.02]'
+                                : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50'
+                                }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-gray-900 text-white flex flex-col items-center justify-center">
+                                  <span className="text-lg font-bold leading-none">{day}</span>
+                                  <span className="text-[11px] uppercase opacity-80">{monthLabel}</span>
+                                </div>
+                                <div className={`${isRTL ? 'text-right' : 'text-left'}`}>
+                                  <div className="text-sm font-semibold line-clamp-2">
+                                    {language === 'ar' ? event.titleAr : event.titleEn}
+                                  </div>
+                                  <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{event.time}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-xs font-semibold text-green-600">
+                                {event.price} ر.س
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {eventError && (
+                      <p className={`text-red-500 text-sm ${isRTL ? 'text-right' : 'text-left'}`}>{eventError}</p>
+                    )}
+                  </div>
+                )}
+
                 {/* Guests Steppers Row */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Adults Stepper */}
                   <div className={`p-3 border rounded-xl bg-gray-50 flex flex-col items-center justify-center space-y-2`}>
                     <Label className="text-sm font-medium text-gray-600">
@@ -371,7 +563,7 @@ const ReservationSection = () => {
                   <Label className={`text-sm font-semibold ${isRTL ? 'text-right block' : 'text-left block'}`}>
                     {t('seatingPreference')}
                   </Label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
                       { id: 'indoor-non-smoking', label: t('indoorNonSmoking'), icon: '🚭' },
                       { id: 'indoor-smoking', label: t('indoorSmoking'), icon: '🚬' },
@@ -411,7 +603,6 @@ const ReservationSection = () => {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className={`h-10 ${isRTL ? 'text-right font-arabic' : 'text-left font-english'}`}
                     placeholder={language === 'ar' ? ' البريد الإلكتروني (اختياري)' : 'Email (Optional)'}
-                    required
                     disabled={isSubmitting}
                   />
                 </div>
